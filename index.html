@@ -75,17 +75,17 @@ async function load(){
   {const {count}=await sb.from("orders").select("id",{count:"exact",head:true}).eq("status","new");S.newc=count||0}
   if(S.tab==="home"){let all=[],from=0;const ms=today().slice(0,8)+"01";while(true){const {data}=await sb.from("orders").select("order_date,status,total,source,lines").gte("order_date",ms).range(from,from+999);all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}S.dash=all}
   if(S.tab==="kan"){const d7=new Date(Date.now()-7*864e5),ds=d7.getFullYear()+"-"+String(d7.getMonth()+1).padStart(2,"0")+"-"+String(d7.getDate()).padStart(2,"0");S.kan=await fetchAll("orders",q=>q.or("status.in.(new,preparing,shipped,indelivery),and(status.eq.delivered,order_date.gte."+ds+")").order("order_date").order("no"))}
-  if(S.tab==="new"&&!S.zones.length){const {data}=await sb.from("ship_zones").select("*").order("sort");S.zones=data||[]}
+  if(S.tab==="zones"||(S.tab==="new"&&!S.zones.length)){const {data}=await sb.from("ship_zones").select("*").order("sort");S.zones=data||[]}
   if(S.tab==="stock"||S.tab==="new"){const {data}=await sb.from("stock").select("*").order("brand").order("color");S.stock=data||[]}
   if(S.tab==="rep"){let all=[],from=0;while(true){const {data}=await sb.from("orders").select("*").gte("order_date",S.rf).lte("order_date",S.rt).range(from,from+999);all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}S.all=all}
   if(S.tab==="team"){const {data}=await sb.from("profiles").select("*").order("name");S.team=data||[]}
 }
-function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(r==="admin"||r==="mod")t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"],["rep","📊 التقارير"]);if(r==="admin")t.push(["team","👥 الفريق"],["export","📤 تصدير"]);return t}
+function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(r==="admin"||r==="mod")t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"],["rep","📊 التقارير"]);if(r==="admin")t.push(["team","👥 الفريق"],["export","📤 تصدير"],["zones","🚚 أسعار الشحن"]);return t}
 function render(){
   if(!S.role){A().className="";A().innerHTML='<div class="card"><b>حسابك لسه مش مفعّل</b><p class="m">كلّم الأدمن عشان يحدد صلاحيتك.</p><button class="btn sec" id="lo">خروج</button></div>';$("#lo").onclick=logout;return}
   if(!tabs().some(x=>x[0]===S.tab))S.tab="list";
   let h=`<div class="top">${BRAND}<span class="m">${esc(S.name)} · ${ROLES[S.role]} <button class="btn sec" id="lo" style="margin:0;padding:4px 10px">خروج</button></span></div><nav>`+tabs().map(x=>`<button data-t="${x[0]}" class="${S.tab===x[0]?"on":""}" ${(x[0]==="late"&&S.late.length)||(x[0]==="list"&&S.newc)?'style="border-color:var(--er);color:var(--er)"':""}>${x[1]}</button>`).join("")+"</nav>";
-  h+=S.tab==="kan"?kanView():S.tab==="export"?exportView():S.tab==="home"?homeView():S.tab==="new"?formView():S.tab==="stock"?stockView():S.tab==="late"?lateView():S.tab==="rep"?repView():S.tab==="team"?teamView():listView();
+  h+=S.tab==="zones"?zonesView():S.tab==="kan"?kanView():S.tab==="export"?exportView():S.tab==="home"?homeView():S.tab==="new"?formView():S.tab==="stock"?stockView():S.tab==="late"?lateView():S.tab==="rep"?repView():S.tab==="team"?teamView():listView();
   h+=FOOT;A().className="";A().innerHTML=h;
   document.querySelectorAll("nav button").forEach(b=>b.onclick=async()=>{S.tab=b.dataset.t;if(S.tab==="new"){S.edit=null;S.lines=[];S.files=[]}await load();render()});
   $("#lo").onclick=logout;bind();
@@ -104,7 +104,7 @@ function listView(){
     const ph=(o.photos||[]).map(p=>`<img src="${S.urls[p]||""}" data-ph alt="">`).join("");let a="";
     if(r==="ship"||r==="admin")a+=`<label>تحديث الحالة</label><select data-st="${o.id}">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${o.status===k?"selected":""}>${v}</option>`).join("")}</select><label>ملاحظة المجهّز</label><textarea data-sn="${o.id}">${esc(o.ship_note)}</textarea><div class="row"><button class="btn" data-sv="${o.id}">حفظ</button><label class="btn sec" style="margin:10px 0 0;text-align:center;color:var(--tx)">📷 رفع صورة<input type="file" accept="image/*" hidden data-up="${o.id}"></label></div>`;
     if(r==="mod"||r==="admin")a+=`<div class="row"><button class="btn sec" data-ed="${o.id}">✏️ تعديل البيانات</button>${o.status!=="cancelled"?`<button class="btn sec" data-cx="${o.id}">إلغاء الأوردر</button>`:""}<select data-wa="${o.id}"><option value="">📲 واتساب...</option><option value="confirm">رسالة تأكيد</option><option value="ship">رسالة الشحن</option><option value="done">رسالة التسليم</option><option value="na">غير متوفر</option></select></div>`;
-    a+=`<div class="row"><button class="btn sec" data-pr="${o.id}">🖨️ بوليصة 10×15</button></div>`;
+    a+=`<div class="row"><button class="btn sec" data-pr="${o.id}">🖨️ بوليصة 10×15</button>${(r==="mod"||r==="admin")&&o.status==="partial"&&(o.lines||[]).length?`<button class="btn sec" data-rt="${o.id}">↩️ إرجاع قطع للمخزون</button>`:""}${r==="admin"?`<button class="btn sec" data-lg="${o.id}">🕘 السجل</button>`:""}</div><div id="lg${o.id}"></div>`;
     return `<div class="card"><div class="hd"><span class="no">أوردر #${o.no}${S.q.length>=2?" · "+o.order_date:""}</span><span class="bd s-${o.status}">${ST[o.status]||""}</span></div><div><b>${esc(o.customer)}</b> · <a href="tel:${esc(o.phone)}" style="color:var(--pr)">${esc(o.phone)}</a></div><div class="m">${esc(o.address)}</div><div class="m">البروفايل: ${esc(o.profile_name)}${o.source?" · 📲 "+SRC[o.source]:""}</div><div style="margin-top:6px">${esc(o.items)}</div><div class="m">${o.zone?esc(o.zone)+" · ":""}شحن ${money(o.ship_fee)} ج.م</div><div>السعر ${money(o.price)} + الشحن = <b>${money(o.total)} ج.م</b></div>${o.notes?`<div class="note">📝 ${esc(o.notes)}</div>`:""}${o.ship_note?`<div class="note">🚚 ${esc(o.ship_note)}</div>`:""}${ph?`<div class="ph">${ph}</div>`:""}${(o.attachments||[]).length?`<div class="m" style="margin-top:6px">📎 مرفقات المودريتور</div><div class="ph">${o.attachments.map(p=>`<img src="${S.urls[p]||""}" data-ph alt="">`).join("")}</div>`:""}${a}</div>`}).join("");
 }
 function repView(){
@@ -222,6 +222,23 @@ async function doBackup(){
     XLSX.writeFile(wb,"backup-"+today()+".xlsx");m.textContent="تم تنزيل النسخة الاحتياطية ("+o.length+" أوردر)"}
   catch(e){m.textContent="تعذر التصدير: "+(e.message||"تأكد من الاتصال")}
 }
+const FN={customer:"الاسم",phone:"التليفون",address:"العنوان",zone:"المنطقة",items:"المحتويات",price:"السعر",ship_fee:"الشحن",notes:"ملاحظات",ship_note:"ملاحظة المجهّز"};
+async function showLog(id){
+  const box=$("#lg"+id);if(box.innerHTML){box.innerHTML="";return}
+  const {data,error}=await sb.from("order_log").select("*").eq("order_id",id).order("at",{ascending:false});
+  if(error){box.innerHTML='<div class="note">تعذر تحميل السجل (اتأكد إنك شغّلت update-5).</div>';return}
+  box.innerHTML='<div class="note">'+((data||[]).map(r=>{const t=new Date(r.at).toLocaleString("ar-EG",{timeZone:"Africa/Cairo"}),d=r.details||{};
+    const body=r.action==="created"?"سجّل الأوردر":Object.entries(d).map(([k,v])=>k==="status"?"الحالة: "+(ST[v[0]]||v[0])+" ← "+(ST[v[1]]||v[1]):(FN[k]||k)+": "+v[0]+" ← "+v[1]).join(" | ");
+    return `<div style="margin:4px 0">🕘 ${t} · <b>${esc(r.user_name||"")}</b><br>${esc(body)}</div>`}).join("")||"مفيش سجل لسه")+"</div>";
+}
+async function returnPieces(id){
+  const o=S.orders.find(x=>x.id==id);if(!o)return;const back=[],nl=[];
+  for(const l of o.lines){const v=prompt(l.brand+" "+l.color+": كم قطعة رجعت من "+l.q+"؟ (0 لو مفيش)","0");if(v===null)return;const n=Math.min(l.q,Math.max(0,parseInt(v)||0));if(n)back.push(l.brand+" "+l.color+" × "+n);if(l.q-n>0)nl.push({...l,q:l.q-n})}
+  if(!back.length)return;
+  const {error}=await sb.from("orders").update({lines:nl,items:nl.length?nl.map(x=>x.brand+" "+x.color+" × "+x.q).join("، "):"— كل القطع رجعت",notes:((o.notes||"")+"\nمرتجع جزئي: "+back.join("، ")).trim()}).eq("id",id);
+  alert(error?"فشل الإرجاع":"تم إرجاع القطع للمخزون: "+back.join("، "));await load();render();
+}
+function zonesView(){return `<div class="card"><b>أسعار الشحن</b><label>بحث</label><input id="zq" placeholder="اسم المنطقة"><div class="row" style="margin-top:8px"><input id="zan" placeholder="منطقة جديدة"><input id="zaf" type="number" inputmode="decimal" placeholder="السعر" style="max-width:100px"><button class="btn" id="zadd" style="margin:0">إضافة</button></div><div class="m" id="zmsg"></div></div><div class="card">${S.zones.map(z=>`<div class="row" data-zs="${qa(z.name)}" style="margin-bottom:6px;flex-wrap:nowrap"><input data-zn="${z.id}" value="${qa(z.name)}"><input type="number" inputmode="decimal" data-zf="${z.id}" value="${z.fee}" style="max-width:90px"><button class="btn sec" style="margin:0;min-width:0;flex:0 0 auto" data-zd="${z.id}">✖</button></div>`).join("")}</div>`}
 function stockView(){
   const r=S.role,can=r==="admin"||r==="mod",by={},q=x=>esc(x).replace(/"/g,"&quot;");
   S.stock.forEach(x=>(by[x.brand]=by[x.brand]||[]).push(x));
@@ -248,6 +265,13 @@ function bind(){
   A().querySelectorAll("[data-card]").forEach(c=>{c.ondragstart=ev=>ev.dataTransfer.setData("text/plain",c.dataset.card)});
   A().querySelectorAll("[data-col]").forEach(c=>{c.ondragover=ev=>ev.preventDefault();c.ondrop=ev=>{ev.preventDefault();const id=ev.dataTransfer.getData("text/plain");if(id)moveTo(id,c.dataset.col)}});
   on("#xo","click",doExport);on("#xb","click",doBackup);
+  on("[data-rt]","click",e=>returnPieces(e.dataset.rt));
+  on("[data-lg]","click",e=>showLog(e.dataset.lg));
+  on("#zq","input",e=>{const f=e.value.trim();A().querySelectorAll("[data-zs]").forEach(r=>r.style.display=!f||r.dataset.zs.includes(f)?"":"none")});
+  on("[data-zn]","change",async e=>{const {error}=await sb.from("ship_zones").update({name:e.value.trim()}).eq("id",e.dataset.zn);e.style.borderColor=error?"var(--er)":"var(--ok)"});
+  on("[data-zf]","change",async e=>{const {error}=await sb.from("ship_zones").update({fee:Number(e.value)||0}).eq("id",e.dataset.zf);e.style.borderColor=error?"var(--er)":"var(--ok)"});
+  on("[data-zd]","click",async e=>{if(confirm("حذف المنطقة دي؟")){await sb.from("ship_zones").delete().eq("id",e.dataset.zd);re()}});
+  on("#zadd","click",async()=>{const n=$("#zan").value.trim(),f=Number($("#zaf").value);if(!n||$("#zaf").value===""||!(f>=0)){$("#zmsg").textContent="اكتب الاسم والسعر.";return}const {error}=await sb.from("ship_zones").insert({name:n,fee:f,sort:999});if(error){$("#zmsg").textContent="تعذر الإضافة (الاسم ممكن يكون موجود).";return}re()});
   on("#addline","click",()=>{S.lines.push({brand:"",sid:0,color:"",q:1});drawLines()});
   on("#f_zone","input",e=>{const z=S.zones.find(z=>z.name===e.value.trim());if(z)$("#f_fee").value=z.fee;calc()});
   on("#f_fee","input",calc);on("#f_price","input",calc);
