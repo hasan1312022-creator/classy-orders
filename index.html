@@ -42,7 +42,7 @@ const FOOT=`<div class="m" style="text-align:center;margin:26px 0 14px">تابع
 const BRAND=`<div style="display:flex;align-items:center;gap:8px"><img src="${LOGO}" alt="" style="height:40px;background:#fff;border-radius:8px;padding:2px"><h1>Classy Eyes</h1></div>`;
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-const S={user:null,role:null,orders:[],all:[],team:[],urls:{},kan:[],newc:0,dash:[],files:[],tab:"home",date:today(),fstat:"",src:"",q:"",stock:[],sq:"",zones:[],late:[],lines:[],edit:null,rf:today(),rt:today()};
+const S={user:null,role:null,orders:[],all:[],team:[],urls:{},contacts:[],sel:new Set(),cq:null,cf:"",cnote:"",cmsg:(()=>{try{return localStorage.getItem("cmsg")||""}catch(e){return ""}})()||"أهلاً {الاسم} 🌸\nعندنا في Classy Eyes عروض جديدة ✨\nلو حابة تعرفي التفاصيل ابعتيلنا هنا.",defs:[],defect:[],kan:[],newc:0,dash:[],files:[],tab:"home",date:today(),fstat:"",src:"",q:"",stock:[],sq:"",zones:[],late:[],lines:[],edit:null,rf:today(),rt:today()};
 const $=s=>document.querySelector(s),A=()=>$("#app");
 const esc=t=>{const d=document.createElement("div");d.textContent=t==null?"":String(t);return d.innerHTML};
 const money=n=>(Number(n)||0).toLocaleString("ar-EG");
@@ -68,50 +68,53 @@ async function signUrls(list){
 async function load(){
   if(S.tab==="list"||S.tab==="new"){
     const qq=S.q.replace(/[,()%*]/g," ").trim();
-    if(qq.length>=2){const {data}=await sb.from("orders").select("*").or(`customer.ilike.%${qq}%,phone.ilike.%${qq}%`).order("order_date",{ascending:false}).order("no").limit(100);S.orders=data||[]}
+    if(qq.length>=2){const {data}=await sb.from("orders").select("*").or(`customer.ilike.%${qq}%,phone.ilike.%${qq}%,waybill.ilike.%${qq}%`).order("order_date",{ascending:false}).order("no").limit(100);S.orders=data||[]}
     else{const {data}=await sb.from("orders").select("*").eq("order_date",S.date).order("no");S.orders=data||[]}
     await signUrls(S.orders)}
-  if(S.role==="admin"||S.role==="mod"){const {data}=await sb.from("orders").select("id,no,order_date,customer,phone,zone,status_at,total").eq("status","indelivery").lte("status_at",new Date(Date.now()-5*864e5).toISOString()).order("status_at");S.late=data||[]}
+  if(S.role==="admin"||S.role==="mod"){const {data}=await sb.from("orders").select("id,no,order_date,customer,phone,zone,status_at,total,waybill").eq("status","indelivery").lte("status_at",new Date(Date.now()-5*864e5).toISOString()).order("status_at");S.late=data||[]}
   {const {count}=await sb.from("orders").select("id",{count:"exact",head:true}).eq("status","new");S.newc=count||0}
-  if(S.tab==="home"){let all=[],from=0;const ms=today().slice(0,8)+"01";while(true){const {data}=await sb.from("orders").select("order_date,status,total,source,lines").gte("order_date",ms).range(from,from+999);all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}S.dash=all}
+  if(S.tab==="home"){let all=[],from=0;const ms=today().slice(0,8)+"01";while(true){const {data}=await sb.from("orders").select("order_date,status,total,source,lines,kind").gte("order_date",ms).range(from,from+999);all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}S.dash=all}
   if(S.tab==="kan"){const d7=new Date(Date.now()-7*864e5),ds=d7.getFullYear()+"-"+String(d7.getMonth()+1).padStart(2,"0")+"-"+String(d7.getDate()).padStart(2,"0");S.kan=await fetchAll("orders",q=>q.or("status.in.(new,preparing,shipped,indelivery),and(status.eq.delivered,order_date.gte."+ds+")").order("order_date").order("no"))}
   if(S.tab==="zones"||(S.tab==="new"&&!S.zones.length)){const {data}=await sb.from("ship_zones").select("*").order("sort");S.zones=data||[]}
+  if(S.tab==="contacts"){S.contacts=await fetchAll("contacts",q=>q.order("created_at",{ascending:false}))}
+  if(S.tab==="defect"){const {data}=await sb.from("defect_stock").select("*").order("brand").order("color");S.defect=data||[]}
   if(S.tab==="stock"||S.tab==="new"){const {data}=await sb.from("stock").select("*").order("brand").order("color");S.stock=data||[]}
   if(S.tab==="rep"){let all=[],from=0;while(true){const {data}=await sb.from("orders").select("*").gte("order_date",S.rf).lte("order_date",S.rt).range(from,from+999);all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}S.all=all}
   if(S.tab==="team"){const {data}=await sb.from("profiles").select("*").order("name");S.team=data||[]}
 }
-function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(r==="admin"||r==="mod")t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"],["rep","📊 التقارير"]);if(r==="admin")t.push(["team","👥 الفريق"],["export","📤 تصدير"],["zones","🚚 أسعار الشحن"]);return t}
+function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(r==="admin"||r==="mod")t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"]);if(r==="admin"||r==="mod")t.push(["defect","🗑️ التالف"]);t.push(["rep","📊 التقارير"]);if(r==="admin")t.push(["team","👥 الفريق"],["export","📤 تصدير"],["zones","🚚 أسعار الشحن"],["contacts","📣 عملاء سابقين"]);return t}
 function render(){
   if(!S.role){A().className="";A().innerHTML='<div class="card"><b>حسابك لسه مش مفعّل</b><p class="m">كلّم الأدمن عشان يحدد صلاحيتك.</p><button class="btn sec" id="lo">خروج</button></div>';$("#lo").onclick=logout;return}
   if(!tabs().some(x=>x[0]===S.tab))S.tab="list";
   let h=`<div class="top">${BRAND}<span class="m">${esc(S.name)} · ${ROLES[S.role]} <button class="btn sec" id="lo" style="margin:0;padding:4px 10px">خروج</button></span></div><nav>`+tabs().map(x=>`<button data-t="${x[0]}" class="${S.tab===x[0]?"on":""}" ${(x[0]==="late"&&S.late.length)||(x[0]==="list"&&S.newc)?'style="border-color:var(--er);color:var(--er)"':""}>${x[1]}</button>`).join("")+"</nav>";
-  h+=S.tab==="zones"?zonesView():S.tab==="kan"?kanView():S.tab==="export"?exportView():S.tab==="home"?homeView():S.tab==="new"?formView():S.tab==="stock"?stockView():S.tab==="late"?lateView():S.tab==="rep"?repView():S.tab==="team"?teamView():listView();
+  h+=S.tab==="contacts"?contactsView():S.tab==="defect"?defectView():S.tab==="zones"?zonesView():S.tab==="kan"?kanView():S.tab==="export"?exportView():S.tab==="home"?homeView():S.tab==="new"?formView():S.tab==="stock"?stockView():S.tab==="late"?lateView():S.tab==="rep"?repView():S.tab==="team"?teamView():listView();
   h+=FOOT;A().className="";A().innerHTML=h;
-  document.querySelectorAll("nav button").forEach(b=>b.onclick=async()=>{S.tab=b.dataset.t;if(S.tab==="new"){S.edit=null;S.lines=[];S.files=[]}await load();render()});
+  document.querySelectorAll("nav button").forEach(b=>b.onclick=async()=>{S.tab=b.dataset.t;if(S.tab==="new"){S.edit=null;S.lines=[];S.defs=[];S.files=[]}await load();render()});
   $("#lo").onclick=logout;bind();
 }
 async function logout(){await sb.auth.signOut();location.reload()}
 function formView(){
   const o=S.edit?S.orders.find(x=>x.id===S.edit)||{}:{};
   const f=(k,l,t,v)=>{v=o[v||k];return t==="ta"?`<label>${l}</label><textarea id="f_${k}">${esc(v)}</textarea>`:`<label>${l}</label><input id="f_${k}" ${t==="n"?'type="number" inputmode="decimal"':""} value="${esc(v)}">`};
-  return `<div class="card"><b>${S.edit?"تعديل أوردر رقم "+o.no:"تسجيل أوردر جديد"}</b>${f("customer","اسم العميلة")}${f("phone","رقم التليفون")}<div id="hist"></div>${f("address","العنوان","ta")}${f("profile","اسم البروفايل",0,"profile_name")}<label>مصدر الأوردر</label><select id="f_source"><option value="">اختار...</option>${Object.entries(SRC).map(([k,v])=>`<option value="${k}" ${o.source===k?"selected":""}>${v}</option>`).join("")}</select><label>المحتويات (براند ← لون ← عدد)</label>${S.edit&&o.items&&!(o.lines||[]).length?`<div class="note">المحتويات القديمة: ${esc(o.items)}</div>`:""}<div id="lines"></div><button class="btn sec" type="button" id="addline" style="margin-top:4px">➕ إضافة صنف</button>${f("price","السعر (ج.م)","n")}<label>المنطقة / المحافظة</label><input id="f_zone" list="zl" value="${qa(o.zone||"")}" placeholder="اكتب للبحث واختار من القايمة"><datalist id="zl">${S.zones.map(z=>`<option value="${qa(z.name)}">`).join("")}</datalist><label>قيمة الشحن (ج.م) — تتحط تلقائي وتقدر تعدلها</label><input id="f_fee" type="number" inputmode="decimal" value="${o.ship_fee??""}"><div class="note" id="tot" style="margin-top:8px;font-weight:700"></div>${f("notes","ملاحظات","ta")}<label>📎 إرفاق صور (اختياري)</label><input type="file" id="f_att" accept="image/*" multiple>${S.edit&&(o.attachments||[]).length?`<div class="m">فيه ${o.attachments.length} مرفق محفوظ، والجديد هيتضاف عليه.</div>`:""}<div class="row"><button class="btn" id="save">حفظ</button>${S.edit?'<button class="btn sec" id="cancel">إلغاء التعديل</button>':""}</div><div class="m" id="msg"></div></div>`;
+  return `<div class="card"><b>${S.edit?"تعديل أوردر رقم "+o.no:"تسجيل أوردر جديد"}</b><label style="display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="f_rep" style="width:auto" ${o.kind==="replacement"?"checked":""}> 🔁 أوردر بدل تالف (عيب صناعة)</label><div id="repbox" style="display:none"><label>رقم الأوردر الأصلي / ملاحظة</label><input id="f_ref" value="${qa(o.ref_order||"")}"><label>العدسات التالفة (اللي رجعت) — بتروح لمخزون التالف</label><div id="defs"></div><button class="btn sec" type="button" id="adddef" style="margin-top:4px">➕ إضافة صنف تالف</button></div>${f("customer","اسم العميلة")}${f("phone","رقم التليفون")}<div id="hist"></div>${f("address","العنوان","ta")}${f("profile","اسم البروفايل",0,"profile_name")}<label>مصدر الأوردر</label><select id="f_source"><option value="">اختار...</option>${Object.entries(SRC).map(([k,v])=>`<option value="${k}" ${o.source===k?"selected":""}>${v}</option>`).join("")}</select><label>المحتويات (براند ← لون ← عدد)</label>${S.edit&&o.items&&!(o.lines||[]).length?`<div class="note">المحتويات القديمة: ${esc(o.items)}</div>`:""}<div id="lines"></div><button class="btn sec" type="button" id="addline" style="margin-top:4px">➕ إضافة صنف</button>${f("price","السعر (ج.م)","n")}<label>المنطقة / المحافظة</label><input id="f_zone" list="zl" value="${qa(o.zone||"")}" placeholder="اكتب للبحث واختار من القايمة"><datalist id="zl">${S.zones.map(z=>`<option value="${qa(z.name)}">`).join("")}</datalist><label>قيمة الشحن (ج.م) — تتحط تلقائي وتقدر تعدلها</label><input id="f_fee" type="number" inputmode="decimal" value="${o.ship_fee??""}"><div class="note" id="tot" style="margin-top:8px;font-weight:700"></div>${f("notes","ملاحظات","ta")}<label>📎 إرفاق صور (اختياري)</label><input type="file" id="f_att" accept="image/*" multiple>${S.edit&&(o.attachments||[]).length?`<div class="m">فيه ${o.attachments.length} مرفق محفوظ، والجديد هيتضاف عليه.</div>`:""}<div class="row"><button class="btn" id="save">حفظ</button>${S.edit?'<button class="btn sec" id="cancel">إلغاء التعديل</button>':""}</div><div class="m" id="msg"></div></div>`;
 }
 function listView(){
   const r=S.role,l=S.orders.filter(o=>(!S.fstat||o.status===S.fstat)&&(!S.src||o.source===S.src));
-  let h=`<div class="row"><div><label>التاريخ</label><input type="date" id="fd" value="${S.date}"></div><div><label>الحالة</label><select id="fs"><option value="">الكل</option>${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${S.fstat===k?"selected":""}>${v}</option>`).join("")}</select></div></div><div class="row"><div><label>المصدر</label><select id="fsrc"><option value="">الكل</option>${Object.entries(SRC).map(([k,v])=>`<option value="${k}" ${S.src===k?"selected":""}>${v}</option>`).join("")}</select></div><div><label>بحث بالاسم أو التليفون</label><input id="fq" value="${esc(S.q).replace(/"/g,"&quot;")}" placeholder="اكتب واضغط Enter"></div></div><div style="height:10px"></div>`;
+  let h=`<div class="row"><div><label>التاريخ</label><input type="date" id="fd" value="${S.date}"></div><div><label>الحالة</label><select id="fs"><option value="">الكل</option>${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${S.fstat===k?"selected":""}>${v}</option>`).join("")}</select></div></div><div class="row"><div><label>المصدر</label><select id="fsrc"><option value="">الكل</option>${Object.entries(SRC).map(([k,v])=>`<option value="${k}" ${S.src===k?"selected":""}>${v}</option>`).join("")}</select></div><div><label>بحث بالاسم أو التليفون أو البوليصة</label><input id="fq" value="${esc(S.q).replace(/"/g,"&quot;")}" placeholder="اكتب واضغط Enter"></div></div><div style="height:10px"></div>`;
   if(!l.length)return h+`<div class="empty">${S.q.length>=2?"مفيش نتائج للبحث":"مفيش أوردرات في اليوم ده"}</div>`;
   return h+l.map(o=>{
     const ph=(o.photos||[]).map(p=>`<img src="${S.urls[p]||""}" data-ph alt="">`).join("");let a="";
     if(r==="ship"||r==="admin")a+=`<label>تحديث الحالة</label><select data-st="${o.id}">${Object.entries(ST).map(([k,v])=>`<option value="${k}" ${o.status===k?"selected":""}>${v}</option>`).join("")}</select><label>ملاحظة المجهّز</label><textarea data-sn="${o.id}">${esc(o.ship_note)}</textarea><div class="row"><button class="btn" data-sv="${o.id}">حفظ</button><label class="btn sec" style="margin:10px 0 0;text-align:center;color:var(--tx)">📷 رفع صورة<input type="file" accept="image/*" hidden data-up="${o.id}"></label></div>`;
     if(r==="mod"||r==="admin")a+=`<div class="row"><button class="btn sec" data-ed="${o.id}">✏️ تعديل البيانات</button>${o.status!=="cancelled"?`<button class="btn sec" data-cx="${o.id}">إلغاء الأوردر</button>`:""}<select data-wa="${o.id}"><option value="">📲 واتساب...</option><option value="confirm">رسالة تأكيد</option><option value="ship">رسالة الشحن</option><option value="done">رسالة التسليم</option><option value="na">غير متوفر</option></select></div>`;
     a+=`<div class="row"><button class="btn sec" data-pr="${o.id}">🖨️ بوليصة 10×15</button>${(r==="mod"||r==="admin")&&o.status==="partial"&&(o.lines||[]).length?`<button class="btn sec" data-rt="${o.id}">↩️ إرجاع قطع للمخزون</button>`:""}${r==="admin"?`<button class="btn sec" data-lg="${o.id}">🕘 السجل</button>`:""}</div><div id="lg${o.id}"></div>`;
-    return `<div class="card"><div class="hd"><span class="no">أوردر #${o.no}${S.q.length>=2?" · "+o.order_date:""}</span><span class="bd s-${o.status}">${ST[o.status]||""}</span></div><div><b>${esc(o.customer)}</b> · <a href="tel:${esc(o.phone)}" style="color:var(--pr)">${esc(o.phone)}</a></div><div class="m">${esc(o.address)}</div><div class="m">البروفايل: ${esc(o.profile_name)}${o.source?" · 📲 "+SRC[o.source]:""}</div><div style="margin-top:6px">${esc(o.items)}</div><div class="m">${o.zone?esc(o.zone)+" · ":""}شحن ${money(o.ship_fee)} ج.م</div><div>السعر ${money(o.price)} + الشحن = <b>${money(o.total)} ج.م</b></div>${o.notes?`<div class="note">📝 ${esc(o.notes)}</div>`:""}${o.ship_note?`<div class="note">🚚 ${esc(o.ship_note)}</div>`:""}${ph?`<div class="ph">${ph}</div>`:""}${(o.attachments||[]).length?`<div class="m" style="margin-top:6px">📎 مرفقات المودريتور</div><div class="ph">${o.attachments.map(p=>`<img src="${S.urls[p]||""}" data-ph alt="">`).join("")}</div>`:""}${a}</div>`}).join("");
+    a+=`<label>رقم بوليصة شركة الشحن</label><input data-wb="${o.id}" value="${qa(o.waybill||"")}" placeholder="اكتب الرقم واضغط خارج الخانة">`;
+    return `<div class="card"><div class="hd"><span class="no">أوردر #${o.no}${S.q.length>=2?" · "+o.order_date:""}</span><span class="bd s-${o.status}">${ST[o.status]||""}</span></div><div><b>${esc(o.customer)}</b> · <a href="tel:${esc(o.phone)}" style="color:var(--pr)">${esc(o.phone)}</a></div><div class="m">${esc(o.address)}</div><div class="m">البروفايل: ${esc(o.profile_name)}${o.source?" · 📲 "+SRC[o.source]:""}</div><div style="margin-top:6px">${esc(o.items)}</div>${o.kind==="replacement"?`<div class="note">🔁 بدل تالف${o.ref_order?" لأوردر "+esc(o.ref_order):""}<br>التالف: ${(o.defect_lines||[]).map(x=>esc(x.brand+" "+x.color)+" × "+x.q).join("، ")}</div>`:""}<div class="m">${o.zone?esc(o.zone)+" · ":""}شحن ${money(o.ship_fee)} ج.م</div>${o.waybill?`<div class="m">🚚 بوليصة: <b>${esc(o.waybill)}</b> <button class="btn sec" style="margin:0;padding:2px 8px" data-trk="${qa(o.waybill)}">🔎 تتبع</button></div>`:""}<div>السعر ${money(o.price)} + الشحن = <b>${money(o.total)} ج.م</b></div>${o.notes?`<div class="note">📝 ${esc(o.notes)}</div>`:""}${o.ship_note?`<div class="note">🚚 ${esc(o.ship_note)}</div>`:""}${ph?`<div class="ph">${ph}</div>`:""}${(o.attachments||[]).length?`<div class="m" style="margin-top:6px">📎 مرفقات المودريتور</div><div class="ph">${o.attachments.map(p=>`<img src="${S.urls[p]||""}" data-ph alt="">`).join("")}</div>`:""}${a}</div>`}).join("");
 }
 function repView(){
   const l=S.all,days={};l.forEach(o=>{(days[o.order_date]=days[o.order_date]||[]).push(o)});
   const c=(a,f)=>a.filter(f).length;
-  const row=a=>[a.length,c(a,o=>["shipped","indelivery","delivered","refused","partial"].includes(o.status)),c(a,o=>["new","preparing"].includes(o.status)),c(a,o=>o.status==="unavailable"),c(a,o=>o.status==="delivered"),c(a,o=>["refused","partial"].includes(o.status)),c(a,o=>o.status==="cancelled"),a.filter(o=>o.status!=="cancelled").reduce((s,o)=>s+(Number(o.total)||0),0)];
-  const sr=[...Object.entries(SRC).map(([k,v])=>[v,l.filter(o=>o.source===k)]),["غير محدد",l.filter(o=>!SRC[o.source])]].map(([v,a])=>[v,a.length,a.filter(o=>o.status!=="cancelled").reduce((s,o)=>s+(Number(o.total)||0),0)]);const t=row(l),L=["طُلب","اتشحن","معلق","غير متوفر","تم التسليم","رفض/جزئي","ملغي"];
+  const row=a=>[a.length,c(a,o=>["shipped","indelivery","delivered","refused","partial"].includes(o.status)),c(a,o=>["new","preparing"].includes(o.status)),c(a,o=>o.status==="unavailable"),c(a,o=>o.status==="delivered"),c(a,o=>["refused","partial"].includes(o.status)),c(a,o=>o.status==="cancelled"),a.filter(o=>o.status!=="cancelled"&&o.kind!=="replacement").reduce((s,o)=>s+(Number(o.total)||0),0)];
+  const sr=[...Object.entries(SRC).map(([k,v])=>[v,l.filter(o=>o.source===k)]),["غير محدد",l.filter(o=>!SRC[o.source])]].map(([v,a])=>[v,a.length,a.filter(o=>o.status!=="cancelled"&&o.kind!=="replacement").reduce((s,o)=>s+(Number(o.total)||0),0)]);const t=row(l),L=["طُلب","اتشحن","معلق","غير متوفر","تم التسليم","رفض/جزئي","ملغي"];
   return `<div class="row"><div><label>من</label><input type="date" id="rf" value="${S.rf}"></div><div><label>إلى</label><input type="date" id="rt" value="${S.rt}"></div></div><div style="height:10px"></div><div class="stats">${L.map((x,i)=>`<div><b>${t[i]}</b>${x}</div>`).join("")}<div><b>${money(t[7])}</b>إجمالي (بدون الملغي)</div></div><div class="card scroll"><table><tr><th>اليوم</th>${L.map(x=>`<th>${x}</th>`).join("")}<th>الإجمالي</th></tr>${Object.keys(days).sort().reverse().map(d=>{const r=row(days[d]);return `<tr><td>${d}</td>${r.slice(0,7).map(x=>`<td>${x}</td>`).join("")}<td>${money(r[7])}</td></tr>`}).join("")||'<tr><td colspan="9">لا توجد بيانات</td></tr>'}</table></div><div class="card scroll"><table><tr><th>المصدر</th><th>عدد الأوردرات</th><th>إجمالي (بدون الملغي)</th></tr>${sr.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${money(x[2])}</td></tr>`).join("")}</table></div><div class="m">"اتشحن" بتشمل كل أوردر خرج للشحن حتى لو اتسلّم.</div>`;
 }
 function teamView(){
@@ -119,17 +122,17 @@ function teamView(){
 }
 function avail(sid){const st=S.stock.find(x=>x.id==sid);if(!st)return 0;const o=S.edit?S.orders.find(x=>x.id===S.edit):null;const own=o&&!["cancelled","unavailable","refused"].includes(o.status)?(o.lines||[]).filter(l=>l.sid==sid).reduce((a,l)=>a+l.q,0):0;return st.qty+own}
 function calc(){const t=$("#tot");if(t)t.textContent="إجمالي الأوردر: "+money((Number($("#f_price").value)||0)+(Number($("#f_fee").value)||0))+" ج.م"}
-function drawLines(){
-  const brands=[...new Set(S.stock.map(x=>x.brand))],box=$("#lines");
-  box.innerHTML=S.lines.map((l,i)=>`<div class="row" style="margin-bottom:6px"><select data-lb="${i}"><option value="">البراند</option>${brands.map(b=>`<option value="${qa(b)}" ${l.brand===b?"selected":""}>${esc(b)}</option>`).join("")}</select><select data-lc="${i}"><option value="">اللون</option>${S.stock.filter(x=>x.brand===l.brand).map(x=>`<option value="${x.id}" ${l.sid==x.id?"selected":""}>${esc(x.color)} (${x.qty})</option>`).join("")}</select><input type="number" min="1" inputmode="numeric" style="max-width:80px" data-lq="${i}" value="${l.q}"><button class="btn sec" type="button" style="margin:0;flex:0 0 auto;min-width:0" data-ld="${i}">✖</button></div>`).join("")||'<div class="m">اضغط ➕ لإضافة صنف</div>';
-  box.querySelectorAll("[data-lb]").forEach(e=>e.onchange=()=>{const i=e.dataset.lb;S.lines[i]={brand:e.value,sid:0,color:"",q:S.lines[i].q};drawLines()});
-  box.querySelectorAll("[data-lc]").forEach(e=>e.onchange=()=>{const i=e.dataset.lc,st=S.stock.find(x=>x.id==e.value);S.lines[i].sid=st?st.id:0;S.lines[i].color=st?st.color:"";drawLines()});
-  box.querySelectorAll("[data-lq]").forEach(e=>e.onchange=()=>{S.lines[e.dataset.lq].q=Math.max(1,parseInt(e.value)||1)});
-  box.querySelectorAll("[data-ld]").forEach(e=>e.onclick=()=>{S.lines.splice(e.dataset.ld,1);drawLines()});
+function drawLines(k="lines"){
+  const brands=[...new Set(S.stock.map(x=>x.brand))],box=$("#"+k);
+  box.innerHTML=S[k].map((l,i)=>`<div class="row" style="margin-bottom:6px"><select data-lb="${i}"><option value="">البراند</option>${brands.map(b=>`<option value="${qa(b)}" ${l.brand===b?"selected":""}>${esc(b)}</option>`).join("")}</select><select data-lc="${i}"><option value="">اللون</option>${S.stock.filter(x=>x.brand===l.brand).map(x=>`<option value="${x.id}" ${l.sid==x.id?"selected":""}>${esc(x.color)} (${x.qty})</option>`).join("")}</select><input type="number" min="1" inputmode="numeric" style="max-width:80px" data-lq="${i}" value="${l.q}"><button class="btn sec" type="button" style="margin:0;flex:0 0 auto;min-width:0" data-ld="${i}">✖</button></div>`).join("")||'<div class="m">اضغط ➕ لإضافة صنف</div>';
+  box.querySelectorAll("[data-lb]").forEach(e=>e.onchange=()=>{const i=e.dataset.lb;S[k][i]={brand:e.value,sid:0,color:"",q:S[k][i].q};drawLines(k)});
+  box.querySelectorAll("[data-lc]").forEach(e=>e.onchange=()=>{const i=e.dataset.lc,st=S.stock.find(x=>x.id==e.value);S[k][i].sid=st?st.id:0;S[k][i].color=st?st.color:"";drawLines(k)});
+  box.querySelectorAll("[data-lq]").forEach(e=>e.onchange=()=>{S[k][e.dataset.lq].q=Math.max(1,parseInt(e.value)||1)});
+  box.querySelectorAll("[data-ld]").forEach(e=>e.onclick=()=>{S[k].splice(e.dataset.ld,1);drawLines(k)});
 }
 function lateView(){
   if(!S.late.length)return '<div class="empty">مفيش أوردرات متأخرة 👌</div>';
-  return '<div class="m" style="margin-bottom:8px">أوردرات فضلت «قيد التوصيل» 5 أيام أو أكتر</div>'+S.late.map(o=>`<div class="card"><div class="hd"><span class="no">أوردر #${o.no} · ${o.order_date}</span><span class="bd s-indelivery">${Math.floor((Date.now()-new Date(o.status_at))/864e5)} يوم</span></div><div><b>${esc(o.customer)}</b> · <a href="tel:${esc(o.phone)}" style="color:var(--pr)">${esc(o.phone)}</a></div><div class="m">${esc(o.zone)} · ${money(o.total)} ج.م</div></div>`).join("");
+  return '<div class="m" style="margin-bottom:8px">أوردرات فضلت «قيد التوصيل» 5 أيام أو أكتر</div>'+S.late.map(o=>`<div class="card"><div class="hd"><span class="no">أوردر #${o.no} · ${o.order_date}</span><span class="bd s-indelivery">${Math.floor((Date.now()-new Date(o.status_at))/864e5)} يوم</span></div><div><b>${esc(o.customer)}</b> · <a href="tel:${esc(o.phone)}" style="color:var(--pr)">${esc(o.phone)}</a></div><div class="m">${esc(o.zone)} · ${money(o.total)} ج.م</div>${o.waybill?`<div class="m">🚚 بوليصة: <b>${esc(o.waybill)}</b> <button class="btn sec" style="margin:0;padding:2px 8px" data-trk="${qa(o.waybill)}">🔎 تتبع</button></div>`:"<div class=\"m\">لسه ما اتسجلش رقم بوليصة</div>"}</div>`).join("");
 }
 const WA={
 confirm:`أهلاً {n} 🌸
@@ -141,11 +144,12 @@ confirm:`أهلاً {n} 🌸
 هنبلغك أول ما الأوردر يتشحن. ولو فيه أي تعديل ابعتيلنا هنا.`,
 ship:`أهلاً {n} 🌸
 أوردرك رقم {no} اتشحن 🚚
-المبلغ المطلوب عند الاستلام: {tot} ج.م
+المبلغ المطلوب عند الاستلام: {tot} ج.م{wb}
 مندوب الشحن هيتواصل معاكي على رقمك، فياريت تكوني متاحة.`,
 done:`شكرًا يا {n} 💙
 تم تسليم أوردرك رقم {no}، ونتمنى العدسات تعجبك.
 لو عندك أي ملاحظة كلمينا في أي وقت.
+ولو حابة توصلك عروضنا، احفظي رقمنا عندك 💙
 Be Classy ✨`,
 na:`أهلاً {n} 🌸
 للأسف بعض أصناف أوردرك رقم {no} مش متوفرة حاليًا ({it}).
@@ -153,7 +157,7 @@ na:`أهلاً {n} 🌸
 function waSend(id,k){
   const o=S.orders.find(x=>x.id==id);if(!o||!k)return;
   let p=String(o.phone||"").replace(/\D/g,"");if(p.startsWith("0020"))p=p.slice(2);else if(p.startsWith("0"))p="2"+p;
-  const txt=WA[k].replace("{n}",o.customer).replace("{no}",o.no).replace("{it}",o.items).replace("{tot}",o.total).replace("{ad}",(o.zone?o.zone+" - ":"")+o.address);
+  const txt=WA[k].replace("{n}",o.customer).replace("{no}",o.no).replace("{it}",o.items).replace("{tot}",o.total).replace("{wb}",o.waybill?"\nرقم الشحنة: "+o.waybill:"").replace("{ad}",(o.zone?o.zone+" - ":"")+o.address);
   window.open("https://wa.me/"+p+"?text="+encodeURIComponent(txt),"_blank");
 }
 function printLabel(id){
@@ -167,8 +171,8 @@ function bars(a){
   return a.length?a.map(x=>`<div style="display:flex;align-items:center;gap:6px;margin:5px 0"><span style="flex:0 0 110px;font-size:12px">${esc(x[0])}</span><div style="flex:1;background:var(--bd);border-radius:4px"><div style="width:${x[1]/m*100}%;background:var(--pr);height:14px;border-radius:4px"></div></div><b style="min-width:44px;text-align:left">${x[2]??x[1]}</b></div>`).join(""):'<div class="m">مفيش بيانات لسه</div>';
 }
 function homeView(){
-  const r=S.role,t=today(),all=S.dash,td=all.filter(o=>o.order_date===t),adm=r==="admin";
-  const c=(a,f)=>a.filter(f).length,sum=a=>a.filter(o=>o.status!=="cancelled").reduce((s,o)=>s+(Number(o.total)||0),0),dv=a=>a.filter(o=>o.status==="delivered").reduce((s,o)=>s+(Number(o.total)||0),0);
+  const r=S.role,t=today(),all0=S.dash,all=all0.filter(o=>o.kind!=="replacement"),td=all0.filter(o=>o.order_date===t),adm=r==="admin";
+  const c=(a,f)=>a.filter(f).length,sum=a=>a.filter(o=>o.status!=="cancelled"&&o.kind!=="replacement").reduce((s,o)=>s+(Number(o.total)||0),0),dv=a=>a.filter(o=>o.status==="delivered"&&o.kind!=="replacement").reduce((s,o)=>s+(Number(o.total)||0),0);
   const cd=(n,l)=>`<div><b>${n}</b>${l}</div>`,sec=(ti,b)=>`<div class="card"><b>${ti}</b>${b}</div>`;
   let h=`<div class="m" style="margin-bottom:6px">النهارده (${t})</div><div class="stats">${cd(td.length,"أوردرات اليوم")}${cd(c(td,o=>o.status==="new"),"جديدة")}${cd(c(td,o=>o.status==="preparing"),"جاري التجهيز")}${cd(c(td,o=>["shipped","indelivery"].includes(o.status)),"تم الشحن")}${cd(c(td,o=>o.status==="delivered"),"تم التسليم")}${cd(c(td,o=>o.status==="cancelled"),"ملغية")}</div>`;
   if(adm){
@@ -198,18 +202,18 @@ async function showHist(raw){
 }
 function kanView(){
   const can=S.role==="ship"||S.role==="admin";
-  return '<div style="display:flex;gap:8px;overflow-x:auto;align-items:flex-start">'+KC.map(k=>{const l=S.kan.filter(o=>o.status===k);return `<div data-col="${k}" style="flex:0 0 220px;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:6px;min-height:120px"><div class="hd" style="margin-bottom:6px"><b class="s-${k}">${ST[k]}</b><span class="m">${l.length}</span></div>`+l.map(o=>`<div class="card" ${can?`draggable="true" data-card="${o.id}"`:""} style="padding:8px;margin-bottom:6px;cursor:${can?"grab":"default"}"><b>#${o.no}</b> <span class="m">${o.order_date.slice(5)}</span><div>${esc(o.customer)}</div><div class="m">${esc(o.zone)} · ${money(o.total)} ج.م</div>${can?`<select data-mv="${o.id}" style="margin-top:6px;font-size:12px"><option value="">نقل إلى...</option>${KC.filter(x=>x!==k).map(x=>`<option value="${x}">${ST[x]}</option>`).join("")}</select>`:""}</div>`).join("")+"</div>"}).join("")+`</div><div class="m" style="margin-top:8px">${can?"اسحب الكارت لعمود تاني (على الكمبيوتر) أو اختار من «نقل إلى...». المسلّم المعروض آخر 7 أيام.":"عرض فقط. المسلّم المعروض آخر 7 أيام."}</div>`;
+  return '<div style="display:flex;gap:8px;overflow-x:auto;align-items:flex-start">'+KC.map(k=>{const l=S.kan.filter(o=>o.status===k);return `<div data-col="${k}" style="flex:0 0 220px;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:6px;min-height:120px"><div class="hd" style="margin-bottom:6px"><b class="s-${k}">${ST[k]}</b><span class="m">${l.length}</span></div>`+l.map(o=>`<div class="card" ${can?`draggable="true" data-card="${o.id}"`:""} style="padding:8px;margin-bottom:6px;cursor:${can?"grab":"default"}"><b>#${o.no}</b> <span class="m">${o.order_date.slice(5)}</span><div>${esc(o.customer)}</div><div class="m">${esc(o.zone)} · ${money(o.total)} ج.م</div>${o.waybill?`<div class="m">🚚 ${esc(o.waybill)}</div>`:""}${can?`<select data-mv="${o.id}" style="margin-top:6px;font-size:12px"><option value="">نقل إلى...</option>${KC.filter(x=>x!==k).map(x=>`<option value="${x}">${ST[x]}</option>`).join("")}</select>`:""}</div>`).join("")+"</div>"}).join("")+`</div><div class="m" style="margin-top:8px">${can?"اسحب الكارت لعمود تاني (على الكمبيوتر) أو اختار من «نقل إلى...». المسلّم المعروض آخر 7 أيام.":"عرض فقط. المسلّم المعروض آخر 7 أيام."}</div>`;
 }
 async function moveTo(id,st){const {error}=await sb.from("orders").update({status:st}).eq("id",id);if(error)alert(error.message.includes("الكمية")?"الكمية غير متوفرة بالمخزون":"فشل النقل");await load();render()}
 async function xl(){if(window.XLSX)return;await new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 async function fetchAll(table,f){let all=[],from=0;while(true){let q=sb.from(table).select("*");if(f)q=f(q);const {data,error}=await q.range(from,from+999);if(error)throw error;all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}return all}
-const orow=o=>({"رقم":o.no,"التاريخ":o.order_date,"العميلة":o.customer,"التليفون":o.phone,"المنطقة":o.zone,"العنوان":o.address,"البروفايل":o.profile_name,"المصدر":SRC[o.source]||"","المحتويات":o.items,"السعر":o.price,"الشحن":o.ship_fee,"الإجمالي":o.total,"الحالة":ST[o.status]||o.status,"ملاحظات":o.notes,"ملاحظة المجهّز":o.ship_note});
+const orow=o=>({"رقم":o.no,"التاريخ":o.order_date,"العميلة":o.customer,"التليفون":o.phone,"المنطقة":o.zone,"العنوان":o.address,"البروفايل":o.profile_name,"المصدر":SRC[o.source]||"","المحتويات":o.items,"السعر":o.price,"الشحن":o.ship_fee,"الإجمالي":o.total,"الحالة":ST[o.status]||o.status,"ملاحظات":o.notes,"ملاحظة المجهّز":o.ship_note,"رقم البوليصة":o.waybill,"النوع":o.kind==="replacement"?"بدل تالف":"عادي","الأوردر الأصلي":o.ref_order||""});
 function exportView(){return `<div class="card"><b>تصدير إكسل (للأدمن)</b><div class="row"><div><label>من</label><input type="date" id="xf" value="${S.rf}"></div><div><label>إلى</label><input type="date" id="xt" value="${S.rt}"></div></div><div class="row"><button class="btn" id="xo">📊 تصدير الأوردرات + ملخص يومي</button><button class="btn sec" id="xb">💾 نسخة احتياطية كاملة</button></div><div class="m" id="xmsg" style="margin-top:8px"></div></div>`}
 async function doExport(){
   const m=$("#xmsg");m.textContent="جاري التجهيز...";
   try{await xl();const f=$("#xf").value,t=$("#xt").value,all=await fetchAll("orders",q=>q.gte("order_date",f).lte("order_date",t).order("order_date").order("no")),days={};
     all.forEach(o=>(days[o.order_date]=days[o.order_date]||[]).push(o));const c=(a,fn)=>a.filter(fn).length;
-    const sm=Object.keys(days).sort().map(d=>{const a=days[d];return{"اليوم":d,"طُلب":a.length,"اتشحن":c(a,o=>["shipped","indelivery","delivered","refused","partial"].includes(o.status)),"معلق":c(a,o=>["new","preparing"].includes(o.status)),"غير متوفر":c(a,o=>o.status==="unavailable"),"تم التسليم":c(a,o=>o.status==="delivered"),"رفض/جزئي":c(a,o=>["refused","partial"].includes(o.status)),"ملغي":c(a,o=>o.status==="cancelled"),"الإجمالي":a.filter(o=>o.status!=="cancelled").reduce((s,o)=>s+(Number(o.total)||0),0)}});
+    const sm=Object.keys(days).sort().map(d=>{const a=days[d];return{"اليوم":d,"طُلب":a.length,"اتشحن":c(a,o=>["shipped","indelivery","delivered","refused","partial"].includes(o.status)),"معلق":c(a,o=>["new","preparing"].includes(o.status)),"غير متوفر":c(a,o=>o.status==="unavailable"),"تم التسليم":c(a,o=>o.status==="delivered"),"رفض/جزئي":c(a,o=>["refused","partial"].includes(o.status)),"ملغي":c(a,o=>o.status==="cancelled"),"الإجمالي":a.filter(o=>o.status!=="cancelled"&&o.kind!=="replacement").reduce((s,o)=>s+(Number(o.total)||0),0)}});
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(all.map(orow)),"أوردرات");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sm),"ملخص يومي");XLSX.writeFile(wb,"orders-"+f+"-to-"+t+".xlsx");m.textContent="تم التصدير ("+all.length+" أوردر)"}
   catch(e){m.textContent="تعذر التصدير: "+(e.message||"تأكد من الاتصال")}
 }
@@ -239,6 +243,61 @@ async function returnPieces(id){
   alert(error?"فشل الإرجاع":"تم إرجاع القطع للمخزون: "+back.join("، "));await load();render();
 }
 function zonesView(){return `<div class="card"><b>أسعار الشحن</b><label>بحث</label><input id="zq" placeholder="اسم المنطقة"><div class="row" style="margin-top:8px"><input id="zan" placeholder="منطقة جديدة"><input id="zaf" type="number" inputmode="decimal" placeholder="السعر" style="max-width:100px"><button class="btn" id="zadd" style="margin:0">إضافة</button></div><div class="m" id="zmsg"></div></div><div class="card">${S.zones.map(z=>`<div class="row" data-zs="${qa(z.name)}" style="margin-bottom:6px;flex-wrap:nowrap"><input data-zn="${z.id}" value="${qa(z.name)}"><input type="number" inputmode="decimal" data-zf="${z.id}" value="${z.fee}" style="max-width:90px"><button class="btn sec" style="margin:0;min-width:0;flex:0 0 auto" data-zd="${z.id}">✖</button></div>`).join("")}</div>`}
+function togRep(){const on=$("#f_rep").checked,pr=$("#f_price");$("#repbox").style.display=on?"":"none";if(on){pr.value=0;pr.disabled=true;drawLines("defs")}else pr.disabled=false;calc()}
+function defectView(){
+  const by={},tot=S.defect.reduce((s,x)=>s+x.qty,0);S.defect.forEach(x=>(by[x.brand]=by[x.brand]||[]).push(x));
+  return `<div class="m" style="margin-bottom:8px">مخزون التالف (عيب صناعة): إجمالي ${tot} قطعة. بيتضاف تلقائي من أوردرات البدل، وتقدر تعدّل الكمية بعد التخلص منها أو إرجاعها للمورد.</div>`+(Object.keys(by).map(b=>`<div class="card"><b>${esc(b)}</b>${by[b].map(x=>`<div class="hd" style="margin-top:8px"><span>${esc(x.color)}</span><input type="number" inputmode="numeric" style="width:90px" data-dq="${x.id}" value="${x.qty}"></div>`).join("")}</div>`).join("")||'<div class="empty">مفيش عدسات تالفة مسجّلة</div>');
+}
+const TRACK_URL="https://power-express-eg.com/";
+async function trackWb(n){try{await navigator.clipboard.writeText(n);alert("اتنسخ رقم البوليصة ("+n+"). الصقه في خانة التتبع في موقع شركة الشحن.")}catch(e){alert("رقم البوليصة: "+n+" (انسخه والصقه في موقع الشركة)")}window.open(TRACK_URL,"_blank")}
+const waNum=p=>"2"+normPhone(p);
+const msgFor=c=>S.cmsg.replace(/\{الاسم\}/g,c.name||"عزيزتنا");
+const ccount=()=>{const e=$("#ccount");if(e)e.textContent=[...S.sel].filter(id=>S.contacts.some(c=>c.id===id&&!c.opted_out)).length};
+async function upsertContacts(m,src){
+  const rows=[...m].map(([phone,name])=>({phone,name,source:src}));let i=0;
+  const before=S.contacts.length;
+  for(;i<rows.length;i+=500){const {error}=await sb.from("contacts").upsert(rows.slice(i,i+500),{onConflict:"phone",ignoreDuplicates:true});if(error)throw error}
+  await load();return S.contacts.length-before;
+}
+async function importSheet(file){
+  await xl();const wb=XLSX.read(await file.arrayBuffer()),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+  let pc=-1,nc=-1,hr=-1;
+  for(let i=0;i<Math.min(rows.length,10)&&pc<0;i++)rows[i].forEach((c,j)=>{if(pc<0&&/(تليفون|موبايل|هاتف|رقم|phone|mobile|tel|whats)/i.test(String(c))){pc=j;hr=i}});
+  if(hr>=0)rows[hr].forEach((c,j)=>{if(nc<0&&/(اسم|name)/i.test(String(c)))nc=j});
+  if(pc<0){const cnt={};rows.forEach(r=>r.forEach((c,j)=>{if(/^01[0-25]\d{8}$/.test(normPhone(c)))cnt[j]=(cnt[j]||0)+1}));const b=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];if(b)pc=+b[0]}
+  if(pc<0)throw new Error("مش لاقي عمود التليفون في الشيت");
+  const m=new Map();let bad=0;
+  rows.slice(hr+1).forEach(r=>{if(!String(r[pc]).trim())return;const p=normPhone(r[pc]);if(/^01[0-25]\d{8}$/.test(p)){if(!m.has(p))m.set(p,nc>=0?String(r[nc]||"").trim():"")}else bad++});
+  const added=await upsertContacts(m,"upload");
+  return `لقيت ${m.size} رقم صالح: اتضاف ${added} جديد، و${m.size-added} كانوا موجودين${bad?`، و${bad} رقم مش صالح (لازم موبايل مصري 11 رقم)`:""}.`;
+}
+async function importFromOrders(){
+  const all=await fetchAll("orders",q=>q.order("order_date",{ascending:false})),m=new Map();
+  all.forEach(o=>{const p=normPhone(o.phone);if(/^01[0-25]\d{8}$/.test(p)&&!m.has(p))m.set(p,o.customer||"")});
+  const added=await upsertContacts(m,"orders");
+  return `عملاء الأوردرات: ${m.size} رقم، اتضاف ${added} جديد.`;
+}
+function contactsView(){
+  if(S.cq)return queueView();
+  const f=(S.cf||"").trim(),l=S.contacts.filter(c=>!f||(c.name+" "+c.phone).includes(f));
+  return `<div class="card"><b>📣 عملاء سابقين (${S.contacts.length})</b><label>رفع شيت Excel أو CSV (اسم + تليفون)</label><input type="file" id="cf" accept=".xlsx,.xls,.csv"><button class="btn sec" id="cimp" style="margin-top:8px">استيراد عملاء الأوردرات</button><div class="m" style="margin-top:6px">${esc(S.cnote||"")}</div></div>
+<div class="card"><label>الرسالة ({الاسم} بيتبدل باسم العميلة)</label><textarea id="cmsg" style="min-height:110px">${esc(S.cmsg)}</textarea><div class="row"><button class="btn" id="cstart">▶ ابدأ الإرسال (<span id="ccount">0</span>)</button><button class="btn sec" id="cexp">⬇️ تصدير جهات اتصال CSV</button><button class="btn sec" id="cdel">🗑️ حذف المحدد</button></div></div>
+<label>بحث</label><input id="cs" value="${qa(S.cf||"")}" placeholder="اسم أو رقم ثم Enter">
+<label style="display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="call" style="width:auto"> تحديد الكل (الظاهر: ${l.length})</label>`+l.map(c=>`<div class="card" style="padding:8px;${c.opted_out?"opacity:.5":""}"><div class="hd"><label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--tx)"><input type="checkbox" style="width:auto" data-cc="${c.id}" ${S.sel.has(c.id)?"checked":""} ${c.opted_out?"disabled":""}><span><b>${esc(c.name||"—")}</b> · ${esc(c.phone)}</span></label><button class="btn sec" style="margin:0;padding:4px 8px" data-co="${c.id}">${c.opted_out?"إرجاع":"🚫"}</button></div>${c.last_sent_at?`<div class="m">اتبعتلها ${c.sent_count} مرة · آخر مرة ${c.last_sent_at.slice(0,10)}</div>`:""}${c.opted_out?'<div class="m">ملغي الاشتراك</div>':""}</div>`).join("");
+}
+function queueView(){
+  const q=S.cq,c=S.contacts.find(x=>x.id===q.ids[q.i]);if(!c)return "";
+  return `<div class="card"><b>إرسال ${q.i+1} من ${q.ids.length}</b><div style="margin:10px 0;font-size:18px"><b>${esc(c.name||"—")}</b><br>${esc(c.phone)}</div><div class="note" style="white-space:pre-wrap">${esc(msgFor(c))}</div><div class="row"><button class="btn" id="qopen">📲 افتح واتساب</button><button class="btn sec" id="qdone">✓ تم الإرسال، التالي</button></div><div class="row"><button class="btn sec" id="qskip">تخطي</button><button class="btn sec" id="qstop">إيقاف</button></div></div>`;
+}
+async function qnext(mark){
+  const q=S.cq;if(mark){const c=S.contacts.find(x=>x.id===q.ids[q.i]);await sb.from("contacts").update({last_sent_at:new Date().toISOString(),sent_count:c.sent_count+1}).eq("id",c.id)}
+  q.i++;if(q.i>=q.ids.length){S.cq=null;alert("خلص الطابور ✅")}await load();render();
+}
+function exportContactsCsv(){
+  const rows=S.contacts.filter(c=>S.sel.has(c.id));if(!rows.length){alert("حدد عملاء الأول.");return}
+  const csv="\uFEFFName,Given Name,Phone 1 - Type,Phone 1 - Value\n"+rows.map(c=>{const n=(c.name||"عميل "+c.phone.slice(-4)).replace(/[",\n]/g," ");return `"${n}","${n}",Mobile,+20${c.phone.slice(1)}`}).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="contacts.csv";a.click();
+}
 function stockView(){
   const r=S.role,can=r==="admin"||r==="mod",by={},q=x=>esc(x).replace(/"/g,"&quot;");
   S.stock.forEach(x=>(by[x.brand]=by[x.brand]||[]).push(x));
@@ -272,16 +331,34 @@ function bind(){
   on("[data-zf]","change",async e=>{const {error}=await sb.from("ship_zones").update({fee:Number(e.value)||0}).eq("id",e.dataset.zf);e.style.borderColor=error?"var(--er)":"var(--ok)"});
   on("[data-zd]","click",async e=>{if(confirm("حذف المنطقة دي؟")){await sb.from("ship_zones").delete().eq("id",e.dataset.zd);re()}});
   on("#zadd","click",async()=>{const n=$("#zan").value.trim(),f=Number($("#zaf").value);if(!n||$("#zaf").value===""||!(f>=0)){$("#zmsg").textContent="اكتب الاسم والسعر.";return}const {error}=await sb.from("ship_zones").insert({name:n,fee:f,sort:999});if(error){$("#zmsg").textContent="تعذر الإضافة (الاسم ممكن يكون موجود).";return}re()});
+  on("[data-dq]","change",async e=>{const {error}=await sb.from("defect_stock").update({qty:Math.max(0,parseInt(e.value)||0)}).eq("id",e.dataset.dq);e.style.borderColor=error?"var(--er)":"var(--ok)"});
+  on("#cmsg","input",e=>{S.cmsg=e.value;try{localStorage.setItem("cmsg",e.value)}catch(x){}});
+  on("#cs","change",e=>{S.cf=e.value;render()});
+  on("[data-cc]","change",e=>{const id=Number(e.dataset.cc);e.checked?S.sel.add(id):S.sel.delete(id);ccount()});
+  on("#call","change",e=>{A().querySelectorAll("[data-cc]:not([disabled])").forEach(x=>{const id=Number(x.dataset.cc);x.checked=e.checked;e.checked?S.sel.add(id):S.sel.delete(id)});ccount()});
+  ccount();
+  on("[data-co]","click",async e=>{const c=S.contacts.find(x=>x.id==e.dataset.co);await sb.from("contacts").update({opted_out:!c.opted_out}).eq("id",c.id);S.sel.delete(c.id);await load();render()});
+  on("#cf","change",async e=>{const f=e.files[0];if(!f)return;S.cnote="جاري القراءة...";try{S.cnote=await importSheet(f)}catch(x){S.cnote="تعذر الاستيراد: "+(x.message||"")}render()});
+  on("#cimp","click",async()=>{try{S.cnote=await importFromOrders()}catch(x){S.cnote="تعذر الاستيراد: "+(x.message||"")}render()});
+  on("#cstart","click",()=>{const ids=[...S.sel].filter(id=>S.contacts.some(c=>c.id===id&&!c.opted_out));if(!ids.length||!S.cmsg.trim()){alert("حدد عميلات واكتب الرسالة الأول.");return}S.cq={ids,i:0};render()});
+  on("#cexp","click",exportContactsCsv);
+  on("#cdel","click",async()=>{const ids=[...S.sel];if(!ids.length||!confirm("حذف "+ids.length+" عميل من القايمة؟"))return;for(let i=0;i<ids.length;i+=100)await sb.from("contacts").delete().in("id",ids.slice(i,i+100));S.sel.clear();await load();render()});
+  on("#qopen","click",()=>{const c=S.contacts.find(x=>x.id===S.cq.ids[S.cq.i]);window.open("https://wa.me/"+waNum(c.phone)+"?text="+encodeURIComponent(msgFor(c)),"_blank")});
+  on("#qdone","click",()=>qnext(true));on("#qskip","click",()=>qnext(false));on("#qstop","click",()=>{S.cq=null;render()});
+  on("[data-wb]","change",async e=>{const {error}=await sb.from("orders").update({waybill:e.value.trim()}).eq("id",e.dataset.wb);e.style.borderColor=error?"var(--er)":"var(--ok)"});
+  on("[data-trk]","click",e=>trackWb(e.dataset.trk));
   on("#addline","click",()=>{S.lines.push({brand:"",sid:0,color:"",q:1});drawLines()});
-  on("#f_zone","input",e=>{const z=S.zones.find(z=>z.name===e.value.trim());if(z)$("#f_fee").value=z.fee;calc()});
+  on("#f_zone","input",e=>{const z=S.zones.find(z=>z.name===e.value.trim());if(z&&!$("#f_rep").checked)$("#f_fee").value=z.fee;calc()});
   on("#f_fee","input",calc);on("#f_price","input",calc);
-  if($("#lines")){drawLines();calc()}
+  if($("#lines")){drawLines();togRep()}
+  on("#f_rep","change",togRep);on("#adddef","click",()=>{S.defs.push({brand:"",sid:0,color:"",q:1});drawLines("defs")});
   on("#rf","change",e=>{S.rf=e.value;re()});on("#rt","change",e=>{S.rt=e.value;re()});
   on("#cancel","click",()=>{S.edit=null;S.tab="list";re()});
   on("#save","click",async b=>{
-    const g=k=>$("#f_"+k).value.trim(),d={customer:g("customer"),phone:normPhone(g("phone")),address:g("address"),profile_name:g("profile"),source:g("source"),items:S.lines.length?S.lines.map(l=>l.brand+" "+l.color+" × "+l.q).join("، "):((S.edit&&(S.orders.find(x=>x.id===S.edit)||{}).items)||""),lines:S.lines.map(l=>({sid:l.sid,brand:l.brand,color:l.color,q:l.q})),zone:g("zone"),ship_fee:Number(g("fee"))||0,price:Number(g("price"))||0,notes:g("notes")},msg=$("#msg");
+    const g=k=>$("#f_"+k).value.trim(),d={customer:g("customer"),phone:normPhone(g("phone")),address:g("address"),profile_name:g("profile"),source:g("source"),items:S.lines.length?S.lines.map(l=>l.brand+" "+l.color+" × "+l.q).join("، "):((S.edit&&(S.orders.find(x=>x.id===S.edit)||{}).items)||""),lines:S.lines.map(l=>({sid:l.sid,brand:l.brand,color:l.color,q:l.q})),zone:g("zone"),ship_fee:Number(g("fee"))||0,price:$("#f_rep").checked?0:(Number(g("price"))||0),kind:$("#f_rep").checked?"replacement":"normal",ref_order:$("#f_ref").value.trim(),defect_lines:$("#f_rep").checked?S.defs.map(l=>({sid:l.sid,brand:l.brand,color:l.color,q:l.q})):[],notes:g("notes")},msg=$("#msg");
     if(!d.customer||!d.phone||!d.items||!d.source){msg.textContent="الاسم والتليفون والمحتويات ومصدر الأوردر مطلوبين.";return}
     if(S.lines.some(l=>!l.sid||!(l.q>=1))){msg.textContent="كمّل البراند واللون والعدد لكل صنف.";return}
+    if($("#f_rep").checked&&(!S.defs.length||S.defs.some(l=>!l.sid||!(l.q>=1)))){msg.textContent="حدد العدسات التالفة (براند ولون وعدد).";return}
     const need={};S.lines.forEach(l=>need[l.sid]=(need[l.sid]||0)+l.q);
     for(const k in need){if(need[k]>avail(k)){const st=S.stock.find(x=>x.id==k);msg.textContent="الكمية غير متوفرة بالمخزون: "+st.brand+" "+st.color+" (المتاح "+avail(k)+")";return}}
     b.disabled=true;
@@ -292,7 +369,7 @@ function bind(){
     if(error){msg.textContent=error.message.includes("الكمية")?error.message:"تعذر الحفظ، حاول تاني.";b.disabled=false;return}
     if(!S.edit)S.date=today();S.edit=null;S.files=[];S.tab="list";re();
   });
-  on("[data-ed]","click",async e=>{S.edit=Number(e.dataset.ed);const o=S.orders.find(x=>x.id===S.edit)||{};S.lines=(o.lines||[]).map(x=>({...x}));S.files=[];S.tab="new";await load();render()});
+  on("[data-ed]","click",async e=>{S.edit=Number(e.dataset.ed);const o=S.orders.find(x=>x.id===S.edit)||{};S.lines=(o.lines||[]).map(x=>({...x}));S.defs=(o.defect_lines||[]).map(x=>({...x}));S.files=[];S.tab="new";await load();render()});
   on("[data-cx]","click",async e=>{if(confirm("تأكيد إلغاء الأوردر؟")){await sb.from("orders").update({status:"cancelled"}).eq("id",e.dataset.cx);re()}});
   on("[data-sv]","click",async e=>{const id=e.dataset.sv,{error}=await sb.from("orders").update({status:A().querySelector(`[data-st="${id}"]`).value,ship_note:A().querySelector(`[data-sn="${id}"]`).value.trim()}).eq("id",id);e.textContent=error?(error.message.includes("الكمية")?"الكمية غير متوفرة":"فشل الحفظ"):"تم ✓"});
   on("[data-up]","change",async e=>{
