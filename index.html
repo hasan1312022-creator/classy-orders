@@ -92,16 +92,17 @@ async function load(){
   if(S.tab==="stock"||S.tab==="new"){const {data}=await sb.from("stock").select("*").order("brand").order("color");S.stock=data||[];const {data:pd}=await sb.from("power_stock").select("*").order("power");S.pstock=pd||[]}
   if(S.tab==="rep"){let all=[],from=0;while(true){const {data}=await sb.from("orders").select("*").gte("order_date",S.rf).lte("order_date",S.rt).range(from,from+999);all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}S.all=all}
   if(S.tab==="sellers"){await loadSellers()}
+  if(S.tab==="mkt"){const {data,error}=await sb.rpc("market_insights",{p_days:S.mkd||30});S.mk=error?{err:error.message}:data}
   if(S.tab==="team"){const {data}=await sb.from("profiles").select("*").order("name");S.team=data||[]}
 }
-function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(r==="admin"||r==="mod")t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"],["trk","🔎 تتبع شحنة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"]);if(r==="admin"||r==="mod")t.push(["defect","🗑️ التالف"]);t.push(["rep","📊 التقارير"]);if(r==="admin")t.push(["site","🌐 الموقع"],["sellers","🤝 السيلرات"],["team","👥 الفريق"],["export","📤 تصدير"],["zones","🚚 أسعار الشحن"],["contacts","📣 عملاء سابقين"]);return t}
+function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(r==="admin"||r==="mod")t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"],["trk","🔎 تتبع شحنة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"]);if(r==="admin"||r==="mod")t.push(["defect","🗑️ التالف"]);t.push(["rep","📊 التقارير"]);if(r==="admin")t.push(["site","🌐 الموقع"],["sellers","🤝 السيلرات"],["mkt","🔮 أسرار السوق"],["team","👥 الفريق"],["export","📤 تصدير"],["zones","🚚 أسعار الشحن"],["contacts","📣 عملاء سابقين"]);return t}
 window.__clTok=async()=>{const {data}=await sb.auth.getSession();const x=data&&data.session;return x?{t:x.access_token,u:x.user.id}:null};
 function siteView(){return '<iframe id="siteframe" title="لوحة الموقع" src="../catchy-lens/admin.html?embed=1" style="width:100%;height:calc(100vh - 170px);min-height:520px;border:0;border-radius:12px;background:#fff"></iframe>'}
 function render(){
   if(!S.role){A().className="";A().innerHTML=`<div class="card"><b>${S.app==="pending"?"طلب انضمامك قيد المراجعة":S.app==="rejected"?"تم رفض طلب الانضمام":"حسابك لسه مش مفعّل"}</b><p class="m">${S.app==="pending"?"هنراجع طلبك ونفعّل حسابك قريب، وبعدها ادخلي بنفس البيانات.":"كلّم الأدمن عشان يحدد صلاحيتك."}</p><button class="btn sec" id="lo">خروج</button></div>`;$("#lo").onclick=logout;return}
   if(!tabs().some(x=>x[0]===S.tab))S.tab="list";
   let h=`<div class="top">${BRAND}<span class="m">${esc(S.name)} · ${ROLES[S.role]} <button class="btn sec" id="lo" style="margin:0;padding:4px 10px">خروج</button></span></div><nav>`+tabs().map(x=>`<button data-t="${x[0]}" class="${S.tab===x[0]?"on":""}" ${(x[0]==="late"&&S.late.length)||(x[0]==="list"&&S.newc)?'style="border-color:var(--er);color:var(--er)"':""}>${x[1]}</button>`).join("")+"</nav>";
-  h+=S.tab==="site"?siteView():S.tab==="trk"?trkView():S.tab==="contacts"?contactsView():S.tab==="defect"?defectView():S.tab==="zones"?zonesView():S.tab==="kan"?kanView():S.tab==="export"?exportView():S.tab==="home"?homeView():S.tab==="new"?formView():S.tab==="stock"?stockView():S.tab==="late"?lateView():S.tab==="rep"?repView():S.tab==="team"?teamView():S.tab==="sellers"?sellersView():listView();
+  h+=S.tab==="site"?siteView():S.tab==="trk"?trkView():S.tab==="contacts"?contactsView():S.tab==="defect"?defectView():S.tab==="zones"?zonesView():S.tab==="kan"?kanView():S.tab==="export"?exportView():S.tab==="home"?homeView():S.tab==="new"?formView():S.tab==="stock"?stockView():S.tab==="late"?lateView():S.tab==="rep"?repView():S.tab==="team"?teamView():S.tab==="sellers"?sellersView():S.tab==="mkt"?mktView():listView();
   h+=FOOT;A().className="";A().innerHTML=h;
   document.querySelectorAll("nav button").forEach(b=>b.onclick=async()=>{S.tab=b.dataset.t;if(S.tab==="new"){S.edit=null;S.lines=[];S.defs=[];S.files=[]}await load();render()});
   $("#lo").onclick=logout;bind();
@@ -378,7 +379,7 @@ function bind(){
   const on=(s,ev,fn)=>A().querySelectorAll(s).forEach(e=>e["on"+ev]=()=>fn(e)),re=async()=>{await load();render()};
   on("#fd","change",e=>{S.date=e.value;re()});on("#fs","change",e=>{S.fstat=e.value;render()});
   on("#fsrc","change",e=>{S.src=e.value;render()});
-  sellersBind(on);
+  sellersBind(on);mktBind(on);
   on("[data-sw]","change",async e=>{const o=S.orders.find(x=>x.id==e.dataset.sw),k=e.value;e.value="";if(!o||!k)return;
     const {data:c,error}=await sb.rpc("seller_contact",{p_id:o.seller_id});if(error||!c||!c.phone)return alert("مفيش رقم تليفون للسيلر دي (من تبويب السيلرات)");
     const {data:h}=await sb.from("app_settings").select("value").eq("key","hold_days").single(),hd=h?Number(h.value)||0:7;
@@ -640,6 +641,38 @@ async function loadSellers(){
   const pm={},mm={};(sp.data||[]).forEach(x=>{pm[x.brand]=x.price;mm[x.brand]=x.min_price});
   S.sl={brands,pm,mm,sellers:pf.data||[],ledger:lg,orders:or,set,apps:ap.data||[],reqs:rq,info:Object.fromEntries((bi.data||[]).map(x=>[x.brand,{img:x.image_path,post:x.post}]))};
 }
+function mktView(){
+  const m=S.mk,d=S.mkd||30,num=n=>Number(n)||0;
+  const pick=`<div class="row2" style="margin-bottom:10px"><b>🔮 أسرار السوق</b><span>${[7,30,90].map(x=>`<button class="btn ${d===x?"":"sec"}" data-mkd="${x}" style="margin:0 0 0 4px;padding:4px 10px">${x} يوم</button>`).join("")}</span></div>`;
+  if(!m)return pick+'<div class="card m">جاري التحميل...</div>';
+  if(m.err)return pick+`<div class="card" style="color:var(--er)">تعذّر التحميل: ${esc(m.err)}<br><span class="m">لو الرسالة بتقول الدالة مش موجودة، شغّل update-16-market-insights.sql الأول.</span></div>`;
+  const k=m.kpi||{},bar=(v,mx,col)=>`<div style="height:8px;border-radius:4px;background:#E3E8F0;overflow:hidden;min-width:60px;flex:1"><div style="width:${mx?Math.max(2,Math.round(v/mx*100)):0}%;height:100%;background:${col||"#12284A"}"></div></div>`;
+  const trend=(c,p)=>{c=num(c);p=num(p);if(!p)return c?'<span style="color:#0B5E54;font-size:12px">جديد</span>':"";const x=Math.round((c-p)/p*100);return `<span style="color:${x>=0?"#0B5E54":"var(--er)"};font-size:12px">${x>=0?"▲":"▼"} ${Math.abs(x)}%</span>`};
+  const rows=(a,f)=>a.length?a.map(f).join(""):'<div class="m">مفيش بيانات كفاية لسه</div>';
+  const sec=(t,hint,b)=>`<div class="card"><b>${t}</b>${hint?`<div class="m" style="font-size:12px;margin:2px 0 8px">${hint}</div>`:""}${b}</div>`;
+  const ln=(l,v,b,t)=>`<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px"><span style="flex:0 0 38%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l}</span>${b}<span style="flex:0 0 auto;min-width:34px;text-align:left"><b>${v}</b> ${t||""}</span></div>`;
+  const ord=num(k.n),rf=num(k.rf),dl=num(k.dl);
+  let h=pick+`<div class="stats"><div><b>${ord}</b>أوردرات ${trend(ord,m.prev_orders)}</div><div><b>${money(k.rev)}</b>مبيعات مسلّمة</div><div><b>${ord?Math.round(dl/ord*100):0}%</b>اتسلّمت</div><div><b>${ord?Math.round(rf/ord*100):0}%</b>رفض</div></div><div class="m" style="font-size:12px;margin:-4px 0 10px">آخر ${m.days} يوم مقارنة بالـ${m.days} يوم اللي قبلهم. بدون الملغي والاستبدال.</div>`;
+  const cl=m.colors||[],mx=num((cl[0]||{}).n);
+  h+=sec("🎨 أكتر الألوان طلبًا","عدد الأزواج المطلوبة. السهم بيقارن بالفترة اللي قبلها.",rows(cl.slice(0,15),c=>ln(esc(c.brand+" "+c.color),num(c.n),bar(num(c.n),mx),trend(c.n,c.pn))));
+  const bl=m.brands||[],bm=num((bl[0]||{}).n);
+  h+=sec("🏷️ البراندات","",rows(bl,b=>ln(esc(b.brand),num(b.n),bar(num(b.n),bm,"#0B8F7E"),trend(b.n,b.pn))));
+  const zl=m.zones||[],zm=num((zl[0]||{}).n);
+  h+=sec("📍 المناطق","الأوردرات حسب المنطقة، ونسبة الرفض بين قوسين (لو فوق 20% اتأكد من التأكيد قبل الشحن).",rows(zl,z=>{const r=num(z.n)?Math.round(num(z.rf)/num(z.n)*100):0;return ln(esc(z.zone),num(z.n),bar(num(z.n),zm,r>20?"#B3362B":"#12284A"),`(${r}%)`)}));
+  const hh=Array.from({length:24},(_,i)=>num(((m.hours||[]).find(x=>x.h===i)||{}).n)),hm=Math.max(...hh,1),tot=hh.reduce((a,b)=>a+b,0);
+  const top3=hh.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]).slice(0,3).filter(x=>x[0]>0).map(x=>x[1]).sort((a,b)=>a-b);
+  const hl=i=>{const hr=i%12||12;return hr+(i<12?" ص":" م")};
+  h+=sec("🕒 ساعات الذروة",top3.length?"أكتر الأوقات نشاطًا: "+top3.map(hl).join("، ")+" (بتوقيت القاهرة)":"",`<div style="display:flex;align-items:flex-end;gap:2px;height:90px;direction:ltr">${hh.map((v,i)=>`<div title="${hl(i)}: ${v}" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%"><div style="width:100%;height:${Math.round(v/hm*100)}%;min-height:${v?2:0}px;background:${top3.includes(i)?"#B3362B":"#12284A"};border-radius:2px 2px 0 0"></div></div>`).join("")}</div><div style="display:flex;justify-content:space-between;direction:ltr;font-size:10px;color:var(--mut,#667)"><span>12 ص</span><span>6 ص</span><span>12 م</span><span>6 م</span><span>11 م</span></div>`);
+  const DN=["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"],dd=DN.map((_,i)=>num(((m.dows||[]).find(x=>x.d===i)||{}).n)),dm=Math.max(...dd,1);
+  h+=sec("📅 أيام الأسبوع","",dd.map((v,i)=>ln(DN[i],v,bar(v,dm,"#0B8F7E"))).join(""));
+  const SRC={whatsapp:"واتساب",instagram:"إنستجرام",facebook:"فيسبوك",tiktok:"تيك توك",website:"الموقع",seller:"السيلرات"};
+  h+=sec("📣 مصادر الأوردرات","نسبة التسليم والرفض لكل قناة. عمولة السيلرات بتتخصم من مبيعاتهم المسلّمة.",`<div style="overflow-x:auto"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr class="m"><td>القناة</td><td>أوردرات</td><td>تسليم</td><td>رفض</td><td>مبيعات مسلّمة</td></tr>${rows(m.chans||[],c=>`<tr><td>${esc(SRC[c.src]||c.src)}</td><td>${num(c.n)}</td><td>${Math.round(num(c.dl)/num(c.n)*100)}%</td><td>${Math.round(num(c.rf)/num(c.n)*100)}%</td><td>${money(c.rev)}${num(c.com)?`<div class="m" style="font-size:11px">عمولة ${money(c.com)}</div>`:""}</td></tr>`)}</table></div>`);
+  h+=sec("🧺 بيتباع مع بعض","أزواج اتشرت في نفس الأوردر. مرشّحة تعمل منها باكدج أو عرض.",`<div class="m" style="font-size:12px">براندات</div>${rows(m.bpairs||[],p=>ln(esc(p.b1+" + "+p.b2),num(p.n),"","مرة"))}<div class="m" style="font-size:12px;margin-top:8px">ألوان</div>${rows(m.cpairs||[],p=>ln(esc(p.c1+" + "+p.c2),num(p.n),"","مرة"))}`);
+  h+=sec("⏳ هيخلص قريب","المخزون الحالي مقسوم على معدل البيع الفعلي. الأقرب للنفاد فوق.",rows(m.soon||[],x=>{const dy=num(x.days);return `<div style="display:flex;justify-content:space-between;margin:5px 0;font-size:14px"><span>${esc(x.brand+" "+x.color)}</span><span><b style="color:${dy<=7?"var(--er)":dy<=14?"#B7791F":"inherit"}">${dy} يوم</b> <span class="m">(باقي ${num(x.qty)}، اتباع ${num(x.sold)})</span></span></div>`}));
+  h+=sec("🐌 راكد","مخزون 5 أو أكتر وبيع زوج واحد أو أقل في الفترة. مرشّح لعرض أو عمولة سيلرات أعلى.",rows(m.idle||[],x=>`<div style="display:flex;justify-content:space-between;margin:5px 0;font-size:14px"><span>${esc(x.brand+" "+x.color)}</span><span class="m">باقي ${num(x.qty)}، اتباع ${num(x.sold)}</span></div>`));
+  return h+'<div class="m" style="font-size:12px">الأرباح الصافية محتاجة سعر تكلفة كل صنف، وهو مش مسجّل في السيستم حاليًا.</div>';
+}
+function mktBind(on){on("[data-mkd]","click",async e=>{S.mkd=Number(e.dataset.mkd);S.mk=null;render();await load();render()})}
 function sellersView(){
   const d=S.sl||{brands:[],pm:{},sellers:[],ledger:[],orders:[],set:{},apps:[],reqs:[]},now=Date.now(),nm={};d.sellers.forEach(x=>nm[x.id]=x.name);
   const per=S.slper||"all",cut=per==="all"?"":new Date(Date.now()-Number(per)*864e5).toISOString().slice(0,10);
