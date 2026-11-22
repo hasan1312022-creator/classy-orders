@@ -510,7 +510,7 @@ function bind(){
   on("[data-pdel]","click",async e=>{const [sid,pw]=pk(e.dataset.pdel);if(!confirm("حذف الدرجة دي؟"))return;const {error}=await sb.from("power_stock").delete().eq("stock_id",sid).eq("power",pw);if(error)return alert("فشل الحذف");S.pstock=S.pstock.filter(p=>!(p.stock_id==sid&&Number(p.power)===pw));render()});
   on("[data-padd]","click",async e=>{const sid=Number(e.dataset.padd),sel=A().querySelector(`[data-pnew="${sid}"]`).value,q=parseInt(A().querySelector(`[data-pnq="${sid}"]`).value)||0;if(!sel||q<1)return alert("اختار الدرجة واكتب الكمية.");const {data,error}=await sb.from("power_stock").insert({stock_id:sid,power:Number(sel),qty:q}).select();if(error)return alert("فشل الإضافة: "+error.message);S.pstock.push(data[0]);S.pstock.sort((a,b)=>a.power-b.power);render()});
   on("#sadd","click",async()=>{const g=i=>$(i).value.trim(),d={brand:g("#sb"),color:g("#sc"),qty:parseInt(g("#sn"))||0};if(!d.brand||!d.color){$("#smsg").textContent="البراند واللون مطلوبين.";return}const {error}=await sb.from("stock").insert(d);if(error){$("#smsg").textContent="تعذر الإضافة (ممكن الصنف موجود قبل كده).";return}re()});
-  on("[data-sdel]","click",async e=>{if(confirm("حذف الصنف ده؟")){await sb.from("stock").delete().eq("id",e.dataset.sdel);re()}});
+  on("[data-sdel]","click",async e=>{if(confirm("حذف الصنف ده؟ هيتشال كمان من الموقع.")){const {error}=await sb.from("stock").delete().eq("id",e.dataset.sdel);if(error){alert("فشل حذف الصنف: "+error.message);return}re()}});
   on("#f_att","change",e=>{S.files=[...e.files]});
   on("[data-pr]","click",e=>printLabel(e.dataset.pr));
   on("[data-wa]","change",e=>{waSend(e.dataset.wa,e.value);e.value=""});
