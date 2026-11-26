@@ -477,11 +477,64 @@ function drawAccs(){
   box.querySelectorAll("[data-aqq]").forEach(e=>e.onchange=()=>{S.acc[e.dataset.aqq].q=Math.max(1,parseInt(e.value)||1)});
   box.querySelectorAll("[data-ax]").forEach(e=>e.onclick=()=>{S.acc.splice(e.dataset.ax,1);drawAccs()});
 }
+/* ===== رفع المخزون بشيت إكسل (أدمن) ===== */
+const impKey=(b,c)=>String(b==null?"":b).trim().replace(/\s+/g," ").toLowerCase()+"|"+String(c==null?"":c).trim().replace(/\s+/g," ").toLowerCase();
+const impNum=v=>{const s=String(v==null?"":v).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[,٬\s]/g,"");if(s==="")return 0;return /^\d+(\.0+)?$/.test(s)?parseInt(s,10):NaN};
+function impParse(rows){
+  rows=rows.map((r,i)=>({r,n:i+1})).filter(x=>x.r.some(c=>String(c).trim()!==""));
+  let bi=0,ci=1,qi=2,hdr=false,start=0;
+  for(let i=0;i<Math.min(rows.length,10)&&!hdr;i++){let b=-1,c=-1,q=-1;rows[i].r.forEach((x,j)=>{x=String(x);if(b<0&&/(براند|ماركة|ماركه|brand)/i.test(x))b=j;else if(c<0&&/(لون|color|colour|shade)/i.test(x))c=j;else if(q<0&&/(كمية|كميه|عدد|qty|quantity|stock|مخزون|رصيد)/i.test(x))q=j});if(b>=0&&c>=0){hdr=true;bi=b;ci=c;qi=q;start=i+1}}
+  const map=new Map(),bad=[];let dup=0,last="";
+  rows.slice(start).forEach(({r,n})=>{
+    let b=String(r[bi]==null?"":r[bi]).trim().replace(/\s+/g," "),c=String(r[ci]==null?"":r[ci]).trim().replace(/\s+/g," ");
+    if(b==="")b=last;else last=b;
+    if(c===""){bad.push({n,why:"اللون فاضي"});return}
+    if(b===""){bad.push({n,why:"البراند فاضي"});return}
+    const q=qi>=0?impNum(r[qi]):0;
+    if(isNaN(q)){bad.push({n,why:"الكمية مش رقم ("+String(r[qi]).slice(0,12)+")"});return}
+    const k=impKey(b,c);if(map.has(k)){map.get(k).qty+=q;dup++}else map.set(k,{brand:b,color:c,qty:q,n});
+  });
+  return {items:[...map.values()],bad,dup,hdr,noq:hdr&&qi<0};
+}
+function impView(){
+  const q=x=>esc(x),m=S.impMsg?`<div class="m" style="margin-top:8px;color:var(${/^مقدرتش/.test(S.impMsg)?"--er":"--ok"})">${q(S.impMsg)}</div>`:"";
+  const head=`<div class="card"><b>📥 رفع براندات بشيت إكسل</b>`;
+  if(!S.imp)return head+`<div class="m" style="margin:6px 0">الشيت أعمدته: <b>البراند | اللون | الكمية</b>. أي براند أو لون جديد بيتضاف، والموجود بتختاري تزوّدي عليه ولا تضبطي كميته.</div><div class="row" style="gap:6px;margin-bottom:8px"><button class="btn sec" id="impt">⬇️ قالب فاضي</button><button class="btn sec" id="impc">⬇️ المخزون الحالي كشيت</button></div><input type="file" id="impf" accept=".xlsx,.xls,.csv">${m}</div>`;
+  const I=S.imp,ex=new Map(S.stock.map(x=>[impKey(x.brand,x.color),x])),have=new Set(S.stock.map(x=>impKey(x.brand,"")));
+  let nw=0,old=0;const nb=new Set(),rows=I.items.map(x=>{const e=ex.get(impKey(x.brand,x.color));if(e)old++;else{nw++;if(!have.has(impKey(x.brand,"")))nb.add(impKey(x.brand,""))}return {x,e}});
+  const after=(x,e)=>e?(I.mode==="add"?(Number(e.qty)||0)+x.qty:x.qty):x.qty;
+  const tr=rows.slice(0,12).map(({x,e})=>`<tr><td>${q(x.brand)}</td><td>${q(x.color)}</td><td>${e?(Number(e.qty)||0)+" ← ":""}<b>${after(x,e)}</b></td><td>${e?"موجود":"<span style='color:var(--ok)'>جديد</span>"}</td></tr>`).join("");
+  return head+`<div class="m" style="margin:6px 0">الملف: ${q(I.file||"")}</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><span class="bd s-new">أصناف جديدة: ${nw}${nb.size?" (فيها "+nb.size+" براند جديد)":""}</span><span class="bd s-preparing">موجودة: ${old}</span>${I.bad.length?`<span class="bd s-refused">أخطاء: ${I.bad.length}</span>`:""}${I.dup?`<span class="bd">متكررة اتجمّعت: ${I.dup}</span>`:""}</div>
+  ${I.noq?`<div class="m" style="color:var(--er)">مفيش عمود «الكمية» في الشيت، فكل الكميات هتبقى 0.</div>`:""}
+  ${old?`<div style="margin:6px 0"><label style="display:block"><input type="radio" name="impm" data-impm value="set" ${I.mode==="set"?"checked":""}> الأصناف الموجودة: <b>اضبط الكمية</b> بالرقم اللي في الشيت</label><label style="display:block"><input type="radio" name="impm" data-impm value="add" ${I.mode==="add"?"checked":""}> الأصناف الموجودة: <b>زوّد</b> الرقم على الكمية الحالية</label></div>`:""}
+  <div style="overflow-x:auto"><table style="width:100%;font-size:13px"><tr><th>البراند</th><th>اللون</th><th>الكمية</th><th></th></tr>${tr}</table></div>${rows.length>12?`<div class="m">… و${rows.length-12} صنف تاني</div>`:""}
+  ${I.bad.length?`<div class="m" style="margin-top:6px;color:var(--er)">صفوف هتتجاهل: ${I.bad.slice(0,6).map(b=>"سطر "+b.n+" ("+q(b.why)+")").join("، ")}${I.bad.length>6?"…":""}</div>`:""}
+  <div class="row" style="gap:6px;margin-top:10px"><button class="btn" id="impok" ${rows.length?"":"disabled"}>تأكيد الاستيراد (${rows.length})</button><button class="btn sec" id="impno">إلغاء</button></div><div class="m" id="impmsg"></div>${m}</div>`;
+}
+async function impApply(){
+  const I=S.imp,ex=new Map(S.stock.map(x=>[impKey(x.brand,x.color),x])),ins=[],upd=[];
+  I.items.forEach(x=>{const e=ex.get(impKey(x.brand,x.color));if(e)upd.push({id:e.id,brand:e.brand,color:e.color,qty:Math.max(0,I.mode==="add"?(Number(e.qty)||0)+x.qty:x.qty)});else ins.push({brand:x.brand,color:x.color,qty:Math.max(0,x.qty)})});
+  for(let i=0;i<ins.length;i+=200){const {error}=await sb.from("stock").insert(ins.slice(i,i+200));if(error)throw error}
+  for(let i=0;i<upd.length;i+=200){const {error}=await sb.from("stock").upsert(upd.slice(i,i+200),{onConflict:"id"});if(error)throw error}
+  return `تم: اتضاف ${ins.length} صنف جديد، واتحدّث ${upd.length} صنف موجود${I.bad.length?`، وتجاهلت ${I.bad.length} سطر فيه مشكلة`:""}.`;
+}
+function impBind(on){
+  on("#impf","change",async e=>{const f=e.files&&e.files[0];if(!f)return;
+    try{await xl();const wb=XLSX.read(await f.arrayBuffer()),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});S.imp=impParse(rows);S.imp.file=f.name;S.imp.mode="set";S.impMsg=""}
+    catch(x){S.imp=null;S.impMsg="مقدرتش أقرا الشيت: "+(x&&x.message||x)}render()});
+  on("[data-impm]","change",e=>{S.imp.mode=e.value;render()});
+  on("#impno","click",()=>{S.imp=null;render()});
+  on("#impok","click",async e=>{const b=e,m=$("#impmsg");b.disabled=true;m.textContent="بيتحفظ…";
+    try{const msg=await impApply();S.imp=null;S.impMsg=msg;await load();render()}catch(x){b.disabled=false;m.textContent="فشل الحفظ: "+(x&&x.message||x)}});
+  on("#impt","click",async()=>{await xl();const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([["البراند","اللون","الكمية"]]);ws["!cols"]=[{wch:20},{wch:20},{wch:10}];XLSX.utils.book_append_sheet(wb,ws,"المخزون");XLSX.writeFile(wb,"قالب-المخزون.xlsx")});
+  on("#impc","click",async()=>{await xl();const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([["البراند","اللون","الكمية"],...S.stock.map(x=>[x.brand,x.color,x.qty])]);ws["!cols"]=[{wch:20},{wch:20},{wch:10}];XLSX.utils.book_append_sheet(wb,ws,"المخزون");XLSX.writeFile(wb,"المخزون-"+today()+".xlsx")});
+}
 function lensStockView(){
   const r=S.role,can=r==="admin"||r==="mod",by={},q=x=>esc(x).replace(/"/g,"&quot;");
   S.stock.forEach(x=>(by[x.brand]=by[x.brand]||[]).push(x));
   let h=`<label>بحث في المخزون</label><input id="sq" placeholder="اسم البراند أو اللون"><div style="height:10px"></div>`;
-  if(r==="admin")h+=`<div class="card"><b>إضافة صنف</b><div class="row"><input id="sb" placeholder="البراند"><input id="sc" placeholder="اللون"><input id="sn" type="number" inputmode="numeric" placeholder="الكمية"></div><button class="btn" id="sadd">إضافة</button><div class="m" id="smsg"></div></div>`;
+  if(r==="admin")h+=`<div class="card"><b>إضافة صنف</b><div class="row"><input id="sb" placeholder="البراند"><input id="sc" placeholder="اللون"><input id="sn" type="number" inputmode="numeric" placeholder="الكمية"></div><button class="btn" id="sadd">إضافة</button><div class="m" id="smsg"></div></div>`+impView();
   return h+(Object.keys(by).map(b=>`<div class="card" data-b><div class="hd"><b>${esc(b)}</b>${r==="admin"?`<span class="m" style="font-size:12px">شراء للكل: بلانو <input type="number" inputmode="decimal" style="width:70px" placeholder="ج.م" data-bcost="${q(b)}"> باور <input type="number" inputmode="decimal" style="width:70px" placeholder="ج.م" data-bpcost="${q(b)}"></span>`:""}</div>${by[b].map(x=>`<div class="hd" data-s="${q(x.brand+" "+x.color)}" style="margin-top:8px"><span style="display:inline-flex;align-items:center;gap:8px;${x.qty<=0?"color:var(--er)":""}">${lensSw(x.color,26)}${esc(x.color)}</span><span>${can?`<input type="number" inputmode="numeric" style="width:90px" data-qty="${x.id}" value="${x.qty}"> <label class="m" style="display:inline-flex;gap:4px;align-items:center;margin:0" title="فردة فاضلة من زوج مفتوح"><input type="checkbox" style="width:auto" data-single="${x.id}" ${x.singles?"checked":""}>+فردة</label>`:`<b>${x.qty}${x.singles?" + فردة":""}</b>`}${r==="admin"?` <input type="number" inputmode="decimal" style="width:92px" placeholder="شراء بلانو" title="سعر شراء زوج البلانو" data-cost="${x.id}" value="${((S.cost||{})[x.id]||{}).c??""}"> <input type="number" inputmode="decimal" style="width:92px" placeholder="شراء باور" title="سعر شراء زوج الباور" data-pcost="${x.id}" value="${((S.cost||{})[x.id]||{}).p??""}">`:""}${r==="admin"?` <button class="btn sec" style="margin:0;padding:4px 8px" data-sdel="${x.id}">✖</button>`:""}</span></div><div data-s="${q(x.brand+" "+x.color)}">${powerRow(x,can)}</div>`).join("")}</div>`).join("")||'<div class="empty">المخزون فاضي</div>');
 }
 function shrink(file){return new Promise(res=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=im.width*k;c.height=im.height*k;c.getContext("2d").drawImage(im,0,0,c.width,c.height);c.toBlob(b=>res(b||file),"image/jpeg",.7)};im.onerror=()=>res(file);im.src=URL.createObjectURL(file)})}
@@ -489,7 +542,7 @@ function bind(){
   const on=(s,ev,fn)=>A().querySelectorAll(s).forEach(e=>e["on"+ev]=()=>fn(e)),re=async()=>{await load();render()};
   on("#fd","change",e=>{S.date=e.value;re()});on("#fs","change",e=>{S.fstat=e.value;render()});
   on("#fsrc","change",e=>{S.src=e.value;render()});
-  sellersBind(on);mktBind(on);accBind(on);
+  sellersBind(on);mktBind(on);accBind(on);impBind(on);
   on("[data-sw]","change",async e=>{const o=S.orders.find(x=>x.id==e.dataset.sw),k=e.value;e.value="";if(!o||!k)return;
     const {data:c,error}=await sb.rpc("seller_contact",{p_id:o.seller_id});if(error||!c||!c.phone)return alert("مفيش رقم تليفون للسيلر دي (من تبويب السيلرات)");
     const {data:h}=await sb.from("app_settings").select("value").eq("key","hold_days").single(),hd=h?Number(h.value)||0:7;
