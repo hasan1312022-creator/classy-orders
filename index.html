@@ -62,6 +62,17 @@ body.adm main{max-width:none;padding:0}
   .tbar{padding:12px 28px}.cnt{padding:22px 28px 40px}.siteframe{height:calc(100vh - 140px)}
   .stats{grid-template-columns:repeat(auto-fit,minmax(128px,1fr))}
 }
+
+#tbk{position:fixed;inset:0;z-index:9990;background:transparent}
+#thl{position:fixed;z-index:9991;border-radius:12px;box-shadow:0 0 0 9999px rgba(8,14,28,.72),0 0 0 3px #fff;pointer-events:none;transition:top .25s,left .25s,width .25s,height .25s}
+#thl.full{box-shadow:0 0 0 9999px rgba(8,14,28,.72);border-radius:0;width:0!important;height:0!important}
+#tcd{position:fixed;z-index:9992;width:min(340px,calc(100vw - 24px));background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:14px;padding:14px 14px 12px;box-shadow:0 12px 40px rgba(0,0,0,.35);line-height:1.6}
+#tcd b.tt{display:block;font-size:16px;margin-bottom:4px}#tcd p{margin:0 0 10px;font-size:14px;color:var(--tx)}
+#tcd .tn{display:flex;align-items:center;gap:6px}#tcd .tn .sp{flex:1}
+#tcd .dots{display:flex;gap:4px;margin-bottom:10px}#tcd .dots i{width:7px;height:7px;border-radius:50%;background:var(--bd)}#tcd .dots i.on{background:var(--pr);width:18px;border-radius:4px}
+#tcd .tskip{background:none;border:0;color:var(--mut);cursor:pointer;font-size:13px;padding:6px}
+#tcd .ar{position:absolute;width:14px;height:14px;background:var(--card);border:1px solid var(--bd);transform:rotate(45deg)}
+#tcd .ar.up{top:-8px;border-right:0;border-bottom:0}#tcd .ar.dn{bottom:-8px;border-left:0;border-top:0}
 </style>
 </head>
 <body>
@@ -163,15 +174,73 @@ function render(){
   const secs=SECT.map(s=>({id:s[0],t:s[1],ids:s[2].filter(i=>vis.includes(i))})).filter(s=>s.ids.length),cur=secs.find(s=>s.ids.includes(S.tab))||secs[0];
   const bg=n=>n?`<em class="bdg">${n}</em>`:"",can=S.role==="admin"||S.role==="mod";
   const side=`<aside class="sbar"><div class="sbr"><img src="${LOGO}" alt=""><div><b>Classy Eyes</b><span>نظام الأوردرات</span></div></div>`+secs.map(s=>{const on=s===cur;return `<div class="sg"><button class="sgh ${on?"on":""}" data-sec="${s.id}">${ico(s.id)}<span>${s.t}</span>${bg(s.ids.reduce((a,i)=>a+tbadge(i),0))}</button>${on&&s.ids.length>1?s.ids.map(i=>`<button class="sgi ${S.tab===i?"on":""}" data-nt="${i}"><span>${TL[i]}</span>${bg(tbadge(i))}</button>`).join(""):""}</div>`}).join("")+`<div class="sbu"><div class="av">${esc((S.name||"؟").trim().charAt(0))}</div><div><b>${esc(S.name)}</b><span>${ROLES[S.role]}</span></div><button class="gh lo" title="خروج" aria-label="خروج">خروج</button></div></aside>`;
-  const top=`<div class="tbar"><div class="mhd"><img src="${LOGO}" alt=""><b>Classy Eyes</b></div><div class="crumb">${cur.t}<span>/</span><b>${TL[S.tab]}</b></div><button class="srch" id="cmdk" aria-label="بحث وانتقال">${ico("search",16)}<span>ابحث أو انتقل…</span><kbd>Ctrl K</kbd></button>${can?`<button class="btn nb" data-nt="new">+ أوردر جديد</button>`:""}<button class="gh mlo lo">خروج</button></div>`;
+  const top=`<div class="tbar"><div class="mhd"><img src="${LOGO}" alt=""><b>Classy Eyes</b></div><div class="crumb">${cur.t}<span>/</span><b>${TL[S.tab]}</b></div><button class="srch" id="cmdk" aria-label="بحث وانتقال">${ico("search",16)}<span>ابحث أو انتقل…</span><kbd>Ctrl K</kbd></button>${can?`<button class="btn nb" data-nt="new">+ أوردر جديد</button>`:""}<button class="gh" id="tourbtn" aria-label="جولة تعريفية" title="جولة تعريفية">❓</button><button class="gh mlo lo">خروج</button></div>`;
   const subs=cur.ids.length>1?`<div class="subs">${cur.ids.map(i=>`<button data-nt="${i}" class="${S.tab===i?"on":""}">${TL[i]}${bg(tbadge(i))}</button>`).join("")}</div>`:"";
   const bn=`<div class="bnav" role="navigation" aria-label="الأقسام">${secs.map(s=>`<button data-sec="${s.id}" class="${s===cur?"on":""}">${ico(s.id,22)}${s.t}${bg(s.ids.reduce((a,i)=>a+tbadge(i),0))}</button>`).join("")}</div>`;
   const view=S.tab==="site"?siteView():S.tab==="trk"?trkView():S.tab==="contacts"?contactsView():S.tab==="defect"?defectView():S.tab==="zones"?zonesView():S.tab==="kan"?kanView():S.tab==="export"?exportView():S.tab==="home"?homeView():S.tab==="new"?formView():S.tab==="stock"?stockView():S.tab==="late"?lateView():S.tab==="rep"?repView():S.tab==="team"?teamView():S.tab==="sellers"?sellersView():S.tab==="mkt"?mktView():listView();
   A().className="";A().innerHTML=`<div class="shell">${side}<div class="mainc">${top}${subs}<div class="cnt">${view}${FOOT}</div></div></div>${bn}`;
   document.querySelectorAll("[data-nt]").forEach(b=>b.onclick=()=>goTab(b.dataset.nt));
   document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{const s=secs.find(x=>x.id===b.dataset.sec);goTab((S.lastT&&s.ids.includes(S.lastT[s.id])&&S.lastT[s.id])||s.ids[0])});
-  document.querySelectorAll(".lo").forEach(b=>b.onclick=logout);$("#cmdk").onclick=cmdk;bind();
+  document.querySelectorAll(".lo").forEach(b=>b.onclick=logout);$("#cmdk").onclick=cmdk;$("#tourbtn").onclick=tourStart;bind();tourAuto();
 }
+/* ===== جولة تعريفية للموظفين ===== */
+const TSEC=k=>`.bnav [data-sec="${k}"],.sbar [data-sec="${k}"]`;
+function tourSteps(){
+  const r=S.role,adm=r==="admin",ship=r==="ship",n=(S.name||"").trim().split(" ")[0];
+  const st=[{t:"أهلاً "+(n?n+" ":"")+"👋",d:"جولة سريعة (دقيقة واحدة) تعرّفك على أهم أماكن في السيستم. تقدري تتخطيها وتعيديها في أي وقت من زرار ❓ فوق."},
+   {tab:"list",sel:TSEC("ord"),t:"الأوردرات",d:"من هنا بتوصلي لكل الأوردرات: الجديدة، والمتابعة، والمتأخرة، وتتبع الشحنات."},
+   {tab:"list",sel:"#fq",t:"دوري على أي أوردر",d:"اكتبي اسم العميلة أو رقم تليفونها وهيطلعلك أوردراتها."}];
+  if(!ship)st.push(
+   {tab:"new",sel:'.tbar .nb,.subs [data-nt="new"]',t:"أوردر جديد",d:"الزرار ده بيفتح فورم تسجيل الأوردر، وده الشغل الأساسي بتاعك."},
+   {tab:"new",sel:"#f_customer",t:"بيانات العميلة",d:"اكتبي الاسم والتليفون والعنوان ومصدر الأوردر (من فين جه). كلهم مطلوبين."},
+   {tab:"new",sel:"#addline",t:"العدسات",d:"ضيفي كل صنف: البراند ← اللون ← العدد، وحددي بلانو ولا باور لكل عين. المخزون بيتخصم لوحده."},
+   {tab:"new",sel:"#addacc",t:"المحاليل والماجيك بوكس والحافظات",d:"لو العميلة طلبت معاها محلول أو حافظة أو ماجيك بوكس ضيفيها من هنا (اختياري)."},
+   {tab:"new",sel:"#f_price",t:"سعر الأوردر",d:"اكتبي السعر الإجمالي للأوردر كله من غير الشحن، وخانة الشحن جنبه. الإجمالي بيتحسب تحت."},
+   {tab:"new",sel:"#save",t:"حفظ",d:"بعد الحفظ الأوردر بيظهر في «الأوردرات» بحالة جديد، ويتنقل بعدها للتجهيز والشحن."});
+  else st.push({tab:"kan",sel:'.subs [data-nt="kan"],.sgi[data-nt="kan"]',t:"المتابعة",d:"هنا بتشوفي الأوردرات مقسّمة بالحالة، وبتنقليها من مرحلة للتانية لحد ما تتسلّم."},
+   {tab:"trk",sel:'.subs [data-nt="trk"],.sgi[data-nt="trk"]',t:"تتبع شحنة",d:"اكتبي رقم الشحنة أو بوليصتها وشوفي حالتها."});
+  st.push({tab:"stock",sel:TSEC("stk"),t:"المخزون",d:"الكمية المتاحة لكل براند ولون. اللي قرّب يخلص أو نفد بيظهر بعلامة."},
+   {tab:"stock",sel:"#sq",t:"دوري في المخزون",d:"اكتبي اسم البراند أو اللون وهتلاقيه علطول."});
+  if(adm)st.push({tab:"stock",sel:"#impf",t:"رفع المخزون بشيت إكسل",d:"بدل ما تكتبي البراندات واحدة واحدة، حمّلي القالب وأملاه وارفعيه. فيه معاينة قبل الحفظ."},
+   {tab:"rep",sel:TSEC("gro"),t:"النمو",d:"التقارير والسيلرات وأسرار السوق وعملاء سابقين."},
+   {tab:"team",sel:TSEC("adm"),t:"الإدارة",d:"الفريق والصلاحيات، وأسعار الشحن، والتصدير والنسخ الاحتياطي، ولوحة الموقع."});
+  st.push({sel:"#cmdk",t:"بحث وانتقال سريع",d:"من الشريط ده تقدري تروحي لأي صفحة أو تدوري على عميلة بسرعة (وعلى الكمبيوتر Ctrl+K)."},
+   {sel:"#tourbtn",t:"جاهزة! 🎉",d:"لو نسيتي حاجة اضغطي ❓ في أي وقت وهنعيد الجولة."});
+  return st;
+}
+const tkey=()=>"ce-tour-"+((S.user&&S.user.id)||"x");
+function tourEnd(done){const T=S.tour;if(!T)return;clearInterval(T.iv);window.removeEventListener("resize",T.rs);document.removeEventListener("keydown",T.kd,true);["tbk","thl","tcd"].forEach(i=>{const e=$("#"+i);if(e)e.remove()});S.tour=null;try{localStorage.setItem(tkey(),"1")}catch(x){}
+  if(T.orig&&S.tab!==T.orig&&done!=="stay")goTab(T.orig)}
+async function tourGo(i){
+  const T=S.tour;if(!T)return;T.i=Math.max(0,Math.min(T.steps.length-1,i));const p=T.steps[T.i];
+  if(p.tab&&S.tab!==p.tab){await goTab(p.tab);await new Promise(r=>setTimeout(r,120))}
+  T.scrolled=false;tourDraw(true)}
+function tourEl(sel){if(!sel)return null;for(const e of document.querySelectorAll(sel)){const b=e.getBoundingClientRect();if(b.width>0&&b.height>0&&e.offsetParent!==null||getComputedStyle(e).position==="fixed"&&b.width>0)return e}return null}
+function tourDraw(rebuild){
+  const T=S.tour;if(!T)return;const p=T.steps[T.i],last=T.i===T.steps.length-1;
+  let hl=$("#thl"),cd=$("#tcd");
+  if(!$("#tbk")){const b=document.createElement("div");b.id="tbk";document.body.appendChild(b)}
+  if(!hl){hl=document.createElement("div");hl.id="thl";document.body.appendChild(hl)}
+  if(!cd){cd=document.createElement("div");cd.id="tcd";cd.setAttribute("role","dialog");cd.setAttribute("aria-live","polite");document.body.appendChild(cd)}
+  if(rebuild||cd.dataset.i!==String(T.i)){cd.dataset.i=T.i;
+    cd.innerHTML=`<span class="ar"></span><div class="dots">${T.steps.map((_,k)=>`<i class="${k===T.i?"on":""}"></i>`).join("")}</div><b class="tt">${esc(p.t)}</b><p>${esc(p.d)}</p><div class="tn"><button class="btn" id="tnx" style="margin:0">${last?"تمام، يلا نشتغل":"التالي"}</button>${T.i>0?`<button class="btn sec" id="tpv" style="margin:0">السابق</button>`:""}<span class="sp"></span>${last?"":`<button class="tskip" id="tsk">تخطي</button>`}</div>`;
+    $("#tnx").onclick=()=>last?tourEnd():tourGo(T.i+1);const pv=$("#tpv");if(pv)pv.onclick=()=>tourGo(T.i-1);const sk=$("#tsk");if(sk)sk.onclick=()=>tourEnd()}
+  const el=tourEl(p.sel),vw=innerWidth,vh=innerHeight,ar=cd.querySelector(".ar");
+  if(el&&!T.scrolled){T.scrolled=true;const b=el.getBoundingClientRect();if(b.top<70||b.bottom>vh-90)el.scrollIntoView({block:"center"})}
+  if(!el){hl.className="full";hl.style.cssText="top:50%;left:50%";ar.style.display="none";cd.style.left=Math.max(12,(vw-cd.offsetWidth)/2)+"px";cd.style.top=Math.max(12,(vh-cd.offsetHeight)/2)+"px";return}
+  hl.className="";const b=el.getBoundingClientRect(),pad=6;
+  hl.style.top=(b.top-pad)+"px";hl.style.left=(b.left-pad)+"px";hl.style.width=(b.width+pad*2)+"px";hl.style.height=(b.height+pad*2)+"px";
+  const cw=cd.offsetWidth,ch=cd.offsetHeight,below=b.bottom+pad+14+ch<=vh-8||b.top-pad-14-ch<8;
+  let top=below?b.bottom+pad+12:b.top-pad-12-ch;top=Math.max(8,Math.min(vh-ch-8,top));
+  let left=b.left+b.width/2-cw/2;left=Math.max(12,Math.min(vw-cw-12,left));
+  cd.style.top=top+"px";cd.style.left=left+"px";ar.style.display="";ar.className="ar "+(below?"up":"dn");
+  ar.style.left=Math.max(14,Math.min(cw-28,b.left+b.width/2-left-7))+"px"}
+async function tourStart(){
+  if(S.tour||!S.role||S.role==="seller")return;
+  S.tour={steps:tourSteps(),i:0,orig:S.tab,rs:()=>tourDraw(),kd:e=>{if(e.key==="Escape"){tourEnd()}else if(e.key==="ArrowLeft"){tourGo(S.tour.i+1)}else if(e.key==="ArrowRight"){tourGo(S.tour.i-1)}},iv:0};
+  window.addEventListener("resize",S.tour.rs);document.addEventListener("keydown",S.tour.kd,true);
+  S.tour.iv=setInterval(()=>tourDraw(),500);await tourGo(0)}
+function tourAuto(){if(S._tchk||!S.role||S.role==="seller")return;S._tchk=1;let seen=false;try{seen=localStorage.getItem(tkey())==="1"}catch(x){}if(!seen)setTimeout(tourStart,700)}
 function cmdk(){
   if($("#cmk"))return;const vis=tabs().map(x=>x[0]),items=SECT.flatMap(s=>s[2].filter(i=>vis.includes(i)).map(i=>({id:i,t:TL[i],g:s[1]})));
   const d=document.createElement("div");d.id="cmk";d.innerHTML='<div class="cmb"><input id="cmi" placeholder="اكتب اسم صفحة، أو اسم/تليفون عميلة…" autocomplete="off" aria-label="بحث وانتقال"><div id="cml"></div></div>';document.body.appendChild(d);
