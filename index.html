@@ -73,6 +73,12 @@ body.adm main{max-width:none;padding:0}
 #tcd .tskip{background:none;border:0;color:var(--mut);cursor:pointer;font-size:13px;padding:6px}
 #tcd .ar{position:absolute;width:14px;height:14px;background:var(--card);border:1px solid var(--bd);transform:rotate(45deg)}
 #tcd .ar.up{top:-8px;border-right:0;border-bottom:0}#tcd .ar.dn{bottom:-8px;border-left:0;border-top:0}
+
+.pdn{border-color:#E08A00!important;box-shadow:0 0 0 2px rgba(224,138,0,.35)!important}
+#pbar{position:fixed;z-index:9000;right:12px;left:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--card);color:var(--tx);border:2px solid #E08A00;border-radius:14px;padding:10px 12px;box-shadow:0 10px 34px rgba(0,0,0,.3)}
+#pbar b{display:block;margin-bottom:2px}#pbar .pl{font-size:12px;color:var(--mut);margin-bottom:8px;max-height:70px;overflow:auto}#pbar .pr{display:flex;gap:8px}#pbar .pr .btn{margin:0;flex:1}
+#pbar.fl{animation:pfl .5s 2}@keyframes pfl{50%{transform:scale(1.03);background:#FFF3DC;color:#222}}
+@media(min-width:900px){#pbar{bottom:16px;left:auto;right:calc(50% - 280px);width:560px}}
 </style>
 </head>
 <body>
@@ -181,7 +187,7 @@ function render(){
   A().className="";A().innerHTML=`<div class="shell">${side}<div class="mainc">${top}${subs}<div class="cnt">${view}${FOOT}</div></div></div>${bn}`;
   document.querySelectorAll("[data-nt]").forEach(b=>b.onclick=()=>goTab(b.dataset.nt));
   document.querySelectorAll("[data-sec]").forEach(b=>b.onclick=()=>{const s=secs.find(x=>x.id===b.dataset.sec);goTab((S.lastT&&s.ids.includes(S.lastT[s.id])&&S.lastT[s.id])||s.ids[0])});
-  document.querySelectorAll(".lo").forEach(b=>b.onclick=logout);$("#cmdk").onclick=cmdk;$("#tourbtn").onclick=tourStart;bind();tourAuto();
+  document.querySelectorAll(".lo").forEach(b=>b.onclick=logout);$("#cmdk").onclick=cmdk;$("#tourbtn").onclick=tourStart;bind();pReapply();tourAuto();
 }
 /* ===== جولة تعريفية للموظفين ===== */
 const TSEC=k=>`.bnav [data-sec="${k}"],.sbar [data-sec="${k}"]`;
@@ -241,6 +247,47 @@ async function tourStart(){
   window.addEventListener("resize",S.tour.rs);document.addEventListener("keydown",S.tour.kd,true);
   S.tour.iv=setInterval(()=>tourDraw(),500);await tourGo(0)}
 function tourAuto(){if(S._tchk||!S.role||S.role==="seller")return;S._tchk=1;let seen=false;try{seen=localStorage.getItem(tkey())==="1"}catch(x){}if(!seen)setTimeout(tourStart,700)}
+/* ===== تأكيد الحفظ قبل أي تعديل (مخزون/أسعار/شحن/...) ===== */
+const PATTR=["data-qty","data-single","data-pq","data-aq","data-acc","data-cost","data-pcost","data-bcost","data-bpcost","data-dq","data-zf","data-zn","data-role","data-bp","data-bm","data-bpst","data-wb","data-spb","data-spm"];
+const PSEL=PATTR.map(a=>"["+a+"]").join(",");
+const pOrig=el=>el.type==="checkbox"?el.defaultChecked:el.tagName==="SELECT"?(([...el.options].find(o=>o.defaultSelected)||{}).value||""):el.defaultValue;
+const pCur=el=>el.type==="checkbox"?el.checked:el.value;
+const pAttr=el=>PATTR.find(a=>el.hasAttribute(a));
+const pFind=(attr,val)=>[...document.querySelectorAll("["+attr+"]")].find(x=>x.getAttribute(attr)===val);
+function pLabel(el,a){const v=el.getAttribute(a);let ctx="";if(a==="data-zf"){const z=pFind("data-zn",v);ctx=z?z.value:""}else{const c=el.closest(".card"),bb=c&&c.querySelector("b");ctx=bb?bb.textContent.trim():"";const sp=el.closest(".hd,.row");const f=sp&&sp.querySelector("span");if(f&&f.textContent.trim()&&f.textContent.trim().length<30&&!ctx.endsWith(f.textContent.trim()))ctx+=(ctx?" ":"")+f.textContent.trim().replace(/\s*·.*$/,"")}
+  const NM={"data-qty":"الكمية","data-single":"فردة","data-pq":"كمية الباور","data-aq":"الكمية","data-acc":"سعر الشراء","data-cost":"شراء بلانو","data-pcost":"شراء باور","data-bcost":"شراء بلانو (للكل)","data-bpcost":"شراء باور (للكل)","data-dq":"الكمية","data-zf":"سعر الشحن","data-zn":"اسم المنطقة","data-role":"الصلاحية","data-bp":"سعر السيلر","data-bm":"الحد الأدنى","data-bpst":"المنشور","data-wb":"رقم البوليصة","data-spb":"سعر السيلر","data-spm":"الحد الأدنى"};
+  const nm=NM[a]||el.title||el.placeholder||"";return ctx&&nm?ctx+" — "+nm:(ctx||nm)}
+const pStr=v=>v===true?"✔":v===false?"✖":String(v);
+function pBar(){
+  const P=S.pend;let b=$("#pbar");
+  if(!P||!P.size){if(b)b.remove();return}
+  if(!b){b=document.createElement("div");b.id="pbar";b.setAttribute("role","alertdialog");document.body.appendChild(b)}
+  const L=[...P.values()].slice(0,4).map(x=>esc(x.label)+": "+esc(pStr(x.old))+" ← <b style='display:inline'>"+esc(pStr(x.val))+"</b>").join("<br>");
+  b.innerHTML=`<b>✏️ عندك ${P.size} تعديل لسه ماتحفظش</b><div class="pl">${L}${P.size>4?"<br>… و"+(P.size-4)+" تعديل تاني":""}</div><div class="pr"><button class="btn" id="psave">حفظ التعديلات</button><button class="btn sec" id="pno">تجاهل</button></div>`;
+  $("#psave").onclick=pCommit;$("#pno").onclick=pDiscard}
+function pFlash(){const b=$("#pbar");if(!b)return;b.classList.remove("fl");void b.offsetWidth;b.classList.add("fl")}
+function pStage(el){
+  const a=pAttr(el);if(!a)return;S.pend=S.pend||new Map();const id=a+"="+el.getAttribute(a),cur=pCur(el),old=S.pend.has(id)?S.pend.get(id).old:pOrig(el);
+  if(String(cur)===String(old)){S.pend.delete(id);el.classList.remove("pdn")}else{S.pend.set(id,{attr:a,id:el.getAttribute(a),old,val:cur,label:pLabel(el,a)});el.classList.add("pdn")}
+  pBar()}
+function pReapply(){const P=S.pend;if(!P||!P.size){pBar();return}
+  P.forEach(x=>{const el=pFind(x.attr,x.id);if(!el)return;if(el.type==="checkbox")el.checked=!!x.val;else el.value=x.val;el.classList.add("pdn")});pBar()}
+async function pCommit(){
+  const P=S.pend;if(!P||!P.size)return;const b=$("#psave");if(b){b.disabled=true;b.textContent="بيتحفظ…"}
+  S._commit=true;let miss=0;const done=[];
+  for(const x of P.values()){const el=pFind(x.attr,x.id);if(!el){miss++;continue}el.style.borderColor="";el.classList.remove("pdn");el.dispatchEvent(new Event("change",{bubbles:true}));done.push({el,x})}
+  const NB=["data-role","data-bp","data-bm","data-bpst","data-spb","data-spm"],t0=Date.now();
+  while(Date.now()-t0<5000){if(!done.some(d=>d.el.isConnected&&!NB.includes(d.x.attr)&&!d.el.style.borderColor))break;await new Promise(r=>setTimeout(r,150))}
+  await new Promise(r=>setTimeout(r,done.some(d=>NB.includes(d.x.attr))?900:250));S._commit=false;
+  const bad=done.filter(d=>d.el.isConnected&&/--er/.test(d.el.style.borderColor)).length;
+  done.forEach(d=>{if(d.el.isConnected){d.el.classList.remove("pdn");if(d.el.type==="checkbox")d.el.defaultChecked=d.el.checked;else d.el.defaultValue=d.el.value}});
+  S.pend=new Map();
+  if(bad||miss){await load();render();const bb=document.createElement("div");bb.id="pbar";bb.style.borderColor="#C0392B";bb.innerHTML=`<b>⚠️ ${bad+miss} تعديل ماتحفظش</b><div class="pl">راجعي الخانات الحمرا وجرّبي تاني.</div><div class="pr"><button class="btn sec" id="pok">تمام</button></div>`;document.body.appendChild(bb);$("#pok").onclick=()=>bb.remove();return}
+  const bar=$("#pbar");if(bar){bar.style.borderColor="#1E7B4A";bar.innerHTML=`<b>✅ اتحفظ ${done.length} تعديل</b>`;setTimeout(()=>{const z=$("#pbar");if(z&&!(S.pend&&S.pend.size))z.remove()},1600)}}
+async function pDiscard(){S.pend=new Map();$("#pbar")&&$("#pbar").remove();await load();render()}
+document.addEventListener("change",e=>{if(S._commit||!S.role||S.role==="seller")return;const el=e.target&&e.target.closest&&e.target.closest(PSEL);if(!el)return;e.stopImmediatePropagation();pStage(el)},true);
+window.addEventListener("beforeunload",e=>{if(S.pend&&S.pend.size){e.preventDefault();e.returnValue=""}});
+(()=>{const g=goTab,l=logout;goTab=async function(x){if(S.pend&&S.pend.size&&!S._commit){pFlash();return}return g(x)};logout=async function(){if(S.pend&&S.pend.size&&!S._commit){pFlash();return}return l()}})();
 function cmdk(){
   if($("#cmk"))return;const vis=tabs().map(x=>x[0]),items=SECT.flatMap(s=>s[2].filter(i=>vis.includes(i)).map(i=>({id:i,t:TL[i],g:s[1]})));
   const d=document.createElement("div");d.id="cmk";d.innerHTML='<div class="cmb"><input id="cmi" placeholder="اكتب اسم صفحة، أو اسم/تليفون عميلة…" autocomplete="off" aria-label="بحث وانتقال"><div id="cml"></div></div>';document.body.appendChild(d);
@@ -702,7 +749,7 @@ function bind(){
   on("[data-ph]","click",e=>window.open(e.src,"_blank"));
   on("[data-role]","change",async e=>{const {error}=await sb.from("profiles").update({role:e.value||null}).eq("id",e.dataset.role);if(error)alert("فشل حفظ الصلاحية")});
 }
-setInterval(()=>{const a=document.activeElement;if(S.user&&S.role!=="seller"&&(S.tab==="kan"||S.tab==="home"||S.tab==="list"||S.tab==="stock"||S.tab==="late")&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))load().then(render)},30000);
+setInterval(()=>{const a=document.activeElement;if(S.user&&S.role!=="seller"&&(S.tab==="kan"||S.tab==="home"||S.tab==="list"||S.tab==="stock"||S.tab==="late")&&!(S.pend&&S.pend.size)&&!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))load().then(render)},30000);
 const SB_PUB=SUPABASE_URL+"/storage/v1/object/public/brand-images/";
 function brandSvg(b){let h=0;for(const ch of String(b))h=(h*31+ch.charCodeAt(0))%360;
   const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${215+h%40} 45% 22%)"/><stop offset="1" stop-color="hsl(${200+h%60} 30% 55%)"/></linearGradient></defs><rect width="400" height="300" fill="url(#g)"/><circle cx="200" cy="120" r="62" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="5"/><circle cx="200" cy="120" r="30" fill="#fff" fill-opacity=".25"/><circle cx="200" cy="120" r="14" fill="#0F1B30"/><text x="200" y="250" text-anchor="middle" font-family="Tahoma,Arial,sans-serif" font-size="34" font-weight="700" fill="#fff">${esc(b)}</text></svg>`;
