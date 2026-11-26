@@ -328,7 +328,7 @@ async function pCommit(){
 async function pDiscard(){S.pend=new Map();$("#pbar")&&$("#pbar").remove();await load();render()}
 document.addEventListener("change",e=>{if(S._commit||!S.role||S.role==="seller")return;const el=e.target&&e.target.closest&&e.target.closest(PSEL);if(!el)return;e.stopImmediatePropagation();pStage(el)},true);
 window.addEventListener("beforeunload",e=>{if(S.pend&&S.pend.size){e.preventDefault();e.returnValue=""}});
-(()=>{const g=goTab,l=logout;goTab=async function(x){if(S.pend&&S.pend.size&&!S._commit){pFlash();return}return g(x)};logout=async function(){if(S.pend&&S.pend.size&&!S._commit){pFlash();return}return l()}})();
+(()=>{const g=goTab,l=logout;goTab=async function(x){if(S.pend&&S.pend.size&&!S._commit){pFlash();return}return g(x)};logout=async function(){if(S.pend&&S.pend.size&&!S._commit){pFlash();if(!confirm("في تعديلات لسه ماتحفظتش. تخرجي وتتجاهليها؟"))return;S.pend=new Map()}return l()}})();
 function cmdk(){
   if($("#cmk"))return;const vis=tabs().map(x=>x[0]),items=SECT.flatMap(s=>s[2].filter(i=>vis.includes(i)).map(i=>({id:i,t:TL[i],g:s[1]})));
   const d=document.createElement("div");d.id="cmk";d.innerHTML='<div class="cmb"><input id="cmi" placeholder="اكتب اسم صفحة، أو اسم/تليفون عميلة…" autocomplete="off" aria-label="بحث وانتقال"><div id="cml"></div></div>';document.body.appendChild(d);
@@ -339,7 +339,9 @@ function cmdk(){
   d.onclick=e=>{if(e.target===d)close()};draw();inp.focus();
 }
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"&&S.role&&S.role!=="seller"&&document.body.classList.contains("adm")){e.preventDefault();$("#cmk")?$("#cmk").remove():cmdk()}});
-async function logout(){await sb.auth.signOut();location.reload()}
+async function logout(){try{await Promise.race([sb.auth.signOut(),new Promise(r=>setTimeout(r,3000))])}catch(e){}
+  try{try{await sb.auth.signOut({scope:"local"})}catch(e){}Object.keys(localStorage).filter(k=>/^sb-.*-auth-token/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
+  location.reload()}
 function formView(){
   const o=S.edit?S.orders.find(x=>x.id===S.edit)||{}:{};
   const f=(k,l,t,v)=>{v=o[v||k];return t==="ta"?`<label>${l}</label><textarea id="f_${k}">${esc(v)}</textarea>`:`<label>${l}</label><input id="f_${k}" ${t==="n"?'type="number" inputmode="decimal"':""} value="${esc(v)}">`};
