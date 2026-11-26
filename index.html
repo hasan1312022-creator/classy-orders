@@ -191,7 +191,43 @@ function render(){
 }
 /* ===== جولة تعريفية للموظفين ===== */
 const TSEC=k=>`.bnav [data-sec="${k}"],.sbar [data-sec="${k}"]`;
+function sellerTourSteps(){
+  const n=(S.name||"").trim().split(" ")[0];
+  return [
+   {sn:"home",t:"أهلاً بيكي "+(n?n+" ":"")+"👋",d:"جولة سريعة تعرّفك على كل حاجة في حسابك: إزاي تسجّلي أوردر، وتشوفي الألوان والأسعار، وتتابعي أوردراتك، وتعرفي رصيدك وإزاي تسحبيه. تقدري تتخطيها وتعيديها من زرار ❓ في أي وقت."},
+   {sn:"home",sel:".sl .hero",t:"رصيدك المتاح",d:"ده المبلغ اللي تقدري تسحبيه دلوقتي. بيزيد كل ما أوردر من أوردراتك يتسلّم وتعدّي مدة الانتظار."},
+   {sn:"home",sel:".sl .hero .sub",t:"قيد الانتظار وإجمالي الأرباح",d:"«قيد الانتظار»: عمولة أوردرات اتسلّمت بس لسه ما بقتش متاحة للسحب. «إجمالي الأرباح»: كل اللي كسبتيه من أول يوم."},
+   {sn:"home",sel:'.sl [data-go="nw"]',t:"+ أوردر جديد",d:"من هنا بتبدئي أوردر جديد. بتختاري المنتجات من الكتالوج وبعدها بتكتبي بيانات العميلة وسعر البيع."},
+   {sn:"home",sel:".sl .g3",t:"أرقامك",d:"أوردرات الشهر، وكام أوردر اتسلّم، ونسبة التسليم. كل ما النسبة تعلى كل ما شغلك أفضل."},
+   {sn:"home",sel:"#slt-tier",opt:1,t:"مستواكِ",d:"كل ما تسلّمي أوردرات أكتر بتطلعي مستوى أعلى، وعمولتك على كل أوردر بتزيد (وساعات مكافأة). الشريط بيوريكي باقي كام أوردر للمستوى الجاي."},
+   {sn:"home",sel:"#slt-goal",opt:1,t:"هدف الشهر",d:"رقم الأوردرات المسلّمة المطلوب الشهر ده. لما توصليله بتاخدي مكافأة بتتضاف لمحفظتك."},
+   {sn:"home",sel:"#slt-rw",opt:1,t:"مكافأة الأزواج",d:"كل عدد معين من الأزواج بيتسلّموا بتاخدي عليه مكافأة (فلوس و/أو هدية). الشريط بيوريكي وصلتي لفين."},
+   {sn:"home",sel:"#slt-qty",opt:1,t:"خصم الكمية",d:"كل ما الأوردر يبقى فيه أزواج أكتر، تكلفتك على كل زوج بتقل، فربحك بيزيد."},
+   {sn:"home",sel:"#slt-recent",t:"آخر أوردراتي",d:"أحدث أوردراتك مع حالتها. «عرض الكل» بيفتحلك صفحة الأوردرات كاملة."},
+   {sn:"cat",sel:'.bn [data-sn="cat"]',t:"الكتالوج",d:"هنا بتشوفي كل البراندات والألوان المتاحة وسعرك لكل براند. ده أول خطوة في أي أوردر."},
+   {sn:"cat",sel:"#slq",t:"دوري على براند",d:"اكتبي اسم البراند وهيظهر لوحده."},
+   {sn:"cat",sel:"[data-br]",t:"كارت البراند",d:"كل كارت فيه صورة البراند وعدد ألوانه و«سعرك» للزوج وحالة المخزون (متاح / قليل / خلص). اضغطي عليه تشوفي ألوانه."},
+   {sn:"cat",br:1,sel:"[data-cp]",t:"منشور جاهز للنشر",d:"الإدارة بتجهّزلك منشور وصورة لكل براند. انسخي المنشور وحمّلي الصورة وانشريهم على صفحتك."},
+   {sn:"cat",br:1,sel:"[data-pl]",t:"اختاري الألوان والعدد",d:"كل لون له + و − لتحدّدي عدد الأزواج. اللون اللي خلص ما بيظهرلوش أزرار، وجنب كل لون حالة مخزونه."},
+   {sn:"cat",br:1,sel:"[data-gal]",opt:1,t:"صور اللون",d:"اضغطي على صورة اللون تشوفي صوره من كذا زاوية."},
+   {sn:"cat",br:1,sel:".pb.stk",t:"كمّلي الأوردر",d:"بعد ما تختاري الكمية، الزرار ده بيفتحلك فورم الأوردر ويوريكي عدد القطع المختارة."},
+   {sn:"nw",cart:1,sel:"#sf_price",opt:1,t:"سعر البيع للعميلة",d:"اكتبي السعر اللي هتبيعي بيه للعميلة (للمنتجات من غير الشحن). لازم يبقى على الأقل الحد الأدنى المكتوب تحته."},
+   {sn:"nw",cart:1,sel:"#slprofit",opt:1,t:"ربحك المتوقع",d:"بيتحسب لوحده: سعر البيع − سعرك. شوفيه قبل ما تبعتي الأوردر."},
+   {sn:"nw",cart:1,sel:"#sf_customer",opt:1,t:"بيانات العميلة",d:"الاسم والتليفون والمنطقة (الشحن بيظهر تلقائي وبيتحصّل من العميلة) والعنوان بالتفصيل وأي ملاحظات."},
+   {sn:"nw",cart:1,sel:"#slsend",opt:1,t:"تأكيد وإرسال",d:"بعد الإرسال الأوردر بيروح للإدارة. تقدري تعدّليه أو تلغيه من «أوردراتي» لحد ما يتشحن."},
+   {sn:"ord",sel:'.bn [data-sn="ord"]',t:"أوردراتي",d:"كل أوردراتك وحالة كل واحد: جديد، بيتجهّز، اتشحن، اتسلّم، أو مرتجع."},
+   {sn:"ord",sel:"[data-of]",t:"فلترة بالحالة",d:"اختاري «جديد» أو «قيد التوصيل» أو «تم التسليم» أو «مرتجع/ملغي» عشان تشوفي مجموعة معينة بس."},
+   {sn:"ord",sel:'[data-ov="cust"]',t:"عميلاتي",d:"قايمة عميلاتك وآخر أوردر لكل واحدة ومن كام يوم. العميلة اللي بعدت من فترة كلّميها واعرضي عليها تطلب تاني، وتقدري تعيدي أوردرها بضغطة."},
+   {sn:"ord",sel:"[data-eo]",opt:1,t:"تعديل وإلغاء",d:"الأوردر الجديد أو اللي بيتجهّز تقدري تعدّليه أو تلغيه من هنا. لما يتشحن مبيتعدلش."},
+   {sn:"wal",sel:".sl .hero",t:"محفظتي",d:"رصيدك المتاح للسحب، وتحته قيد الانتظار واللي اتحوّل ليكي. العمولة بتبقى متاحة بعد مدة من تسليم الأوردر."},
+   {sn:"wal",sel:"#rq_amt",t:"طلب سحب",d:"اكتبي المبلغ اللي عايزاه (لحد المتاح)."},
+   {sn:"wal",sel:"#rq_go",t:"إرسال الطلب",d:"اختاري طريقة التحويل (فودافون كاش، انستا باي...) واكتبي رقم محفظتك، وابعتي الطلب. الإدارة بتحوّلك وبتشوفي صورة التحويل في حركات المحفظة."},
+   {sn:"wal",sel:"#reflink",opt:1,t:"ادعي صحابك",d:"ده لينكك الخاص. اللي تسجّل منه كسيلر جديد وتاخد أول عمولة، بتاخدي إنتِ مكافأة."},
+   {sn:"wal",sel:".sl .c.row2",opt:1,t:"حركات المحفظة",d:"كل عمولة وكل تحويل وكل تسوية بتاريخها، ومعاها صورة إثبات التحويل لو موجودة."},
+   {sn:"home",sel:"#sltour",t:"جاهزة! 🎉",d:"لو نسيتي حاجة اضغطي ❓ جولة في أي وقت وهنعيدها."}];
+}
 function tourSteps(){
+  if(S.role==="seller")return sellerTourSteps();
   const r=S.role,adm=r==="admin",ship=r==="ship",n=(S.name||"").trim().split(" ")[0];
   const st=[{t:"أهلاً "+(n?n+" ":"")+"👋",d:"جولة سريعة (دقيقة واحدة) تعرّفك على أهم أماكن في السيستم. تقدري تتخطيها وتعيديها في أي وقت من زرار ❓ فوق."},
    {tab:"list",sel:TSEC("ord"),t:"الأوردرات",d:"من هنا بتوصلي لكل الأوردرات: الجديدة، والمتابعة، والمتأخرة، وتتبع الشحنات."},
@@ -216,10 +252,15 @@ function tourSteps(){
 }
 const tkey=()=>"ce-tour-"+((S.user&&S.user.id)||"x");
 function tourEnd(done){const T=S.tour;if(!T)return;clearInterval(T.iv);window.removeEventListener("resize",T.rs);document.removeEventListener("keydown",T.kd,true);["tbk","thl","tcd"].forEach(i=>{const e=$("#"+i);if(e)e.remove()});S.tour=null;try{localStorage.setItem(tkey(),"1")}catch(x){}
+  if(S.role==="seller"){if(T.demo)SL.cart={};SL.tab=T.orig||"home";SL.brand=null;slRender();window.scrollTo(0,0);return}
   if(T.orig&&S.tab!==T.orig&&done!=="stay")goTab(T.orig)}
-async function tourGo(i){
-  const T=S.tour;if(!T)return;T.i=Math.max(0,Math.min(T.steps.length-1,i));const p=T.steps[T.i];
-  if(p.tab&&S.tab!==p.tab){await goTab(p.tab);await new Promise(r=>setTimeout(r,120))}
+async function tourGo(i,dir){
+  const T=S.tour;if(!T)return;dir=dir||1;T.i=Math.max(0,Math.min(T.steps.length-1,i));const p=T.steps[T.i];
+  if(S.role==="seller"){
+    if(p.cart&&!slCart().length){const it=(SL.cat.items||[]).find(x=>x.st!=="out");if(it){SL.cart[it.sid]=1;T.demo=true}}
+    if(p.sn&&(SL.tab!==p.sn||(p.br&&SL.brand==null)||(!p.br&&SL.brand!=null&&p.sn==="cat"))){SL.tab=p.sn;SL.brand=p.br?((slBrands()[0]||{}).brand||null):null;slRender();window.scrollTo(0,0);await new Promise(r=>setTimeout(r,120))}
+    if(p.opt&&!tourEl(p.sel)){const nx=T.i+dir;if(nx>=0&&nx<T.steps.length)return tourGo(nx,dir)}
+  }else if(p.tab&&S.tab!==p.tab){await goTab(p.tab);await new Promise(r=>setTimeout(r,120))}
   T.scrolled=false;tourDraw(true)}
 function tourEl(sel){if(!sel)return null;for(const e of document.querySelectorAll(sel)){const b=e.getBoundingClientRect();if(b.width>0&&b.height>0&&e.offsetParent!==null||getComputedStyle(e).position==="fixed"&&b.width>0)return e}return null}
 function tourDraw(rebuild){
@@ -230,7 +271,7 @@ function tourDraw(rebuild){
   if(!cd){cd=document.createElement("div");cd.id="tcd";cd.setAttribute("role","dialog");cd.setAttribute("aria-live","polite");document.body.appendChild(cd)}
   if(rebuild||cd.dataset.i!==String(T.i)){cd.dataset.i=T.i;
     cd.innerHTML=`<span class="ar"></span><div class="dots">${T.steps.map((_,k)=>`<i class="${k===T.i?"on":""}"></i>`).join("")}</div><b class="tt">${esc(p.t)}</b><p>${esc(p.d)}</p><div class="tn"><button class="btn" id="tnx" style="margin:0">${last?"تمام، يلا نشتغل":"التالي"}</button>${T.i>0?`<button class="btn sec" id="tpv" style="margin:0">السابق</button>`:""}<span class="sp"></span>${last?"":`<button class="tskip" id="tsk">تخطي</button>`}</div>`;
-    $("#tnx").onclick=()=>last?tourEnd():tourGo(T.i+1);const pv=$("#tpv");if(pv)pv.onclick=()=>tourGo(T.i-1);const sk=$("#tsk");if(sk)sk.onclick=()=>tourEnd()}
+    $("#tnx").onclick=()=>last?tourEnd():tourGo(T.i+1,1);const pv=$("#tpv");if(pv)pv.onclick=()=>tourGo(T.i-1,-1);const sk=$("#tsk");if(sk)sk.onclick=()=>tourEnd()}
   const el=tourEl(p.sel),vw=innerWidth,vh=innerHeight,ar=cd.querySelector(".ar");
   if(el&&!T.scrolled){T.scrolled=true;const b=el.getBoundingClientRect();if(b.top<70||b.bottom>vh-90)el.scrollIntoView({block:"center"})}
   if(!el){hl.className="full";hl.style.cssText="top:50%;left:50%";ar.style.display="none";cd.style.left=Math.max(12,(vw-cd.offsetWidth)/2)+"px";cd.style.top=Math.max(12,(vh-cd.offsetHeight)/2)+"px";return}
@@ -242,11 +283,11 @@ function tourDraw(rebuild){
   cd.style.top=top+"px";cd.style.left=left+"px";ar.style.display="";ar.className="ar "+(below?"up":"dn");
   ar.style.left=Math.max(14,Math.min(cw-28,b.left+b.width/2-left-7))+"px"}
 async function tourStart(){
-  if(S.tour||!S.role||S.role==="seller")return;
-  S.tour={steps:tourSteps(),i:0,orig:S.tab,rs:()=>tourDraw(),kd:e=>{if(e.key==="Escape"){tourEnd()}else if(e.key==="ArrowLeft"){tourGo(S.tour.i+1)}else if(e.key==="ArrowRight"){tourGo(S.tour.i-1)}},iv:0};
+  if(S.tour||!S.role)return;
+  S.tour={steps:tourSteps(),i:0,orig:S.role==="seller"?SL.tab:S.tab,rs:()=>tourDraw(),kd:e=>{if(e.key==="Escape"){tourEnd()}else if(e.key==="ArrowLeft"){tourGo(S.tour.i+1,1)}else if(e.key==="ArrowRight"){tourGo(S.tour.i-1,-1)}},iv:0};
   window.addEventListener("resize",S.tour.rs);document.addEventListener("keydown",S.tour.kd,true);
   S.tour.iv=setInterval(()=>tourDraw(),500);await tourGo(0)}
-function tourAuto(){if(S._tchk||!S.role||S.role==="seller")return;S._tchk=1;let seen=false;try{seen=localStorage.getItem(tkey())==="1"}catch(x){}if(!seen)setTimeout(tourStart,700)}
+function tourAuto(){if(S._tchk||!S.role)return;S._tchk=1;let seen=false;try{seen=localStorage.getItem(tkey())==="1"}catch(x){}if(!seen)setTimeout(tourStart,700)}
 /* ===== تأكيد الحفظ قبل أي تعديل (مخزون/أسعار/شحن/...) ===== */
 const PATTR=["data-qty","data-single","data-pq","data-aq","data-acc","data-cost","data-pcost","data-bcost","data-bpcost","data-dq","data-zf","data-zn","data-role","data-bp","data-bm","data-bpst","data-wb","data-spb","data-spm"];
 const PSEL=PATTR.map(a=>"["+a+"]").join(",");
@@ -787,7 +828,7 @@ const STK={ok:["متوفر","ok"],low:["كمية قليلة","lo"],out:["نفد"
 async function sellerApp(){
   document.body.classList.remove("adm");
   if(!$("#slcss")){const s=document.createElement("style");s.id="slcss";s.textContent=SLCSS;document.head.appendChild(s)}
-  await slLoad();slRender();
+  await slLoad();slRender();tourAuto();
 }
 async function slLoad(){
   const [c,w,o,rq]=await Promise.all([sb.rpc("seller_catalog"),sb.rpc("seller_wallet"),sb.rpc("seller_orders"),sb.rpc("seller_requests")]);
@@ -813,18 +854,18 @@ function slRender(){
 }
 function slHome(){
   const w=SL.wal,del=Number(w.delivered)||0,tot=Number(w.orders)||0,rate=tot?Math.round(del/tot*100):0;
-  return `<div class="row2"><div><div class="m" style="font-size:13px">أهلاً بيكي</div><h2>${esc(S.name)}</h2></div><button class="pb o" style="width:auto;min-height:40px" id="slo">خروج</button></div>
+  return `<div class="row2"><div><div class="m" style="font-size:13px">أهلاً بيكي</div><h2>${esc(S.name)}</h2></div><div style="display:flex;gap:8px"><button class="pb o" style="width:auto;min-height:40px" id="sltour" aria-label="جولة تعريفية">❓ جولة</button><button class="pb o" style="width:auto;min-height:40px" id="slo">خروج</button></div></div>
   <div class="hero"><span class="m">رصيدك المتاح</span><span class="big">${money(w.available)} <span style="font-size:15px;font-weight:500">ج.م</span></span>
   <div class="sub"><div><div class="m" style="font-size:12px">قيد الانتظار</div><b>${money(w.pending)} ج.م</b></div><div><div class="m" style="font-size:12px">إجمالي الأرباح</div><b>${money(w.earned)} ج.م</b></div></div>
   <button class="pb l" data-go="wal">المحفظة</button></div>
   <div class="row2" style="gap:10px"><button class="pb" data-go="nw" style="flex:1.3">+ أوردر جديد</button><button class="pb o" data-go="cat" style="flex:1">الكتالوج</button></div>
   <div class="g3"><div><b>${money(w.month_orders)}</b><span class="m">أوردر الشهر</span></div><div><b>${money(del)}</b><span class="m">تم التسليم</span></div><div><b>${rate}%</b><span class="m">نسبة التسليم</span></div></div>
-  ${(()=>{const t=slTier(del);return `<div class="c"><div class="row2"><b>مستواكِ: ${t.name}</b><span class="m" style="font-size:12px">${t.left?"باقي "+t.left+" أوردر مسلّم لمستوى "+t.next:"أعلى مستوى"}</span></div><div style="height:8px;border-radius:4px;background:#E3E8F0;margin-top:8px;overflow:hidden"><div style="width:${t.bar}%;height:100%;background:#12284A"></div></div>${t.pct?`<div class="m" style="font-size:13px;margin-top:6px">مزيّتك الحالية: +${t.pct}% على كل عمولة</div>`:""}${t.left&&(t.nb||t.nbonus)?`<div class="m" style="font-size:13px;margin-top:4px">مستوى ${t.next}: ${t.nb?"+"+t.nb+"% على العمولة":""}${t.nb&&t.nbonus?" ومعاها ":""}${t.nbonus?"مكافأة "+money(t.nbonus)+" ج.م":""}</div>`:""}</div>`})()}
-  ${(()=>{const g=w.goal||{},go=Number(g.orders)||0,md=Number(w.month_delivered)||0;if(!go)return "";const pc=Math.min(100,Math.round(md/go*100));return `<div class="c"><div class="row2"><b>هدف الشهر</b><span class="m" style="font-size:13px">${md} / ${go} أوردر مسلّم</span></div><div style="height:8px;border-radius:4px;background:#E3E8F0;margin-top:8px;overflow:hidden"><div style="width:${pc}%;height:100%;background:#12284A"></div></div><div class="m" style="font-size:13px;margin-top:6px">${md>=go?"حققتي الهدف"+(Number(g.bonus)>0?" ومكافأتك "+money(g.bonus)+" ج.م اتضافت لمحفظتك":""):(Number(g.bonus)>0?"مكافأة "+money(g.bonus)+" ج.م لما توصلي للهدف، باقي "+(go-md):"باقي "+(go-md)+" أوردر")}</div></div>`})()}
-  ${(()=>{const rw=w.reward,ev=rw?Number(rw.every)||0:0,pr=Number(w.delivered_pairs)||0;if(!ev)return "";const k=pr%ev,pc=Math.round(k/ev*100),pz=[Number(rw.amount)>0?money(rw.amount)+" ج.م":"",rw.gift?"هدية: "+esc(rw.gift):""].filter(Boolean).join(" + ");return `<div class="c"><div class="row2"><b>مكافأة الأزواج</b><span class="m" style="font-size:13px">${k} / ${ev} زوج مسلّم</span></div><div style="height:8px;border-radius:4px;background:#E3E8F0;margin-top:8px;overflow:hidden"><div style="width:${pc}%;height:100%;background:#0B8F7E"></div></div><div class="m" style="font-size:13px;margin-top:6px">كل ${ev} زوج بيتسلّموا = ${pz}. باقي ${ev-k} زوج.</div></div>`})()}
-  ${(()=>{const T=(SL.cat.qty_tiers||[]).filter(t=>Number(t.off)>0).sort((a,b)=>a.min-b.min);return T.length?`<div class="c"><b>خصم الكمية</b><div class="m" style="font-size:13px;margin-top:4px">${T.map(t=>`من ${t.min} أزواج في الأوردر: تكلفتك تقل ${money(t.off)} ج.م على كل زوج`).join("<br>")}</div></div>`:""})()}
+  ${(()=>{const t=slTier(del);return `<div class="c" id="slt-tier"><div class="row2"><b>مستواكِ: ${t.name}</b><span class="m" style="font-size:12px">${t.left?"باقي "+t.left+" أوردر مسلّم لمستوى "+t.next:"أعلى مستوى"}</span></div><div style="height:8px;border-radius:4px;background:#E3E8F0;margin-top:8px;overflow:hidden"><div style="width:${t.bar}%;height:100%;background:#12284A"></div></div>${t.pct?`<div class="m" style="font-size:13px;margin-top:6px">مزيّتك الحالية: +${t.pct}% على كل عمولة</div>`:""}${t.left&&(t.nb||t.nbonus)?`<div class="m" style="font-size:13px;margin-top:4px">مستوى ${t.next}: ${t.nb?"+"+t.nb+"% على العمولة":""}${t.nb&&t.nbonus?" ومعاها ":""}${t.nbonus?"مكافأة "+money(t.nbonus)+" ج.م":""}</div>`:""}</div>`})()}
+  ${(()=>{const g=w.goal||{},go=Number(g.orders)||0,md=Number(w.month_delivered)||0;if(!go)return "";const pc=Math.min(100,Math.round(md/go*100));return `<div class="c" id="slt-goal"><div class="row2"><b>هدف الشهر</b><span class="m" style="font-size:13px">${md} / ${go} أوردر مسلّم</span></div><div style="height:8px;border-radius:4px;background:#E3E8F0;margin-top:8px;overflow:hidden"><div style="width:${pc}%;height:100%;background:#12284A"></div></div><div class="m" style="font-size:13px;margin-top:6px">${md>=go?"حققتي الهدف"+(Number(g.bonus)>0?" ومكافأتك "+money(g.bonus)+" ج.م اتضافت لمحفظتك":""):(Number(g.bonus)>0?"مكافأة "+money(g.bonus)+" ج.م لما توصلي للهدف، باقي "+(go-md):"باقي "+(go-md)+" أوردر")}</div></div>`})()}
+  ${(()=>{const rw=w.reward,ev=rw?Number(rw.every)||0:0,pr=Number(w.delivered_pairs)||0;if(!ev)return "";const k=pr%ev,pc=Math.round(k/ev*100),pz=[Number(rw.amount)>0?money(rw.amount)+" ج.م":"",rw.gift?"هدية: "+esc(rw.gift):""].filter(Boolean).join(" + ");return `<div class="c" id="slt-rw"><div class="row2"><b>مكافأة الأزواج</b><span class="m" style="font-size:13px">${k} / ${ev} زوج مسلّم</span></div><div style="height:8px;border-radius:4px;background:#E3E8F0;margin-top:8px;overflow:hidden"><div style="width:${pc}%;height:100%;background:#0B8F7E"></div></div><div class="m" style="font-size:13px;margin-top:6px">كل ${ev} زوج بيتسلّموا = ${pz}. باقي ${ev-k} زوج.</div></div>`})()}
+  ${(()=>{const T=(SL.cat.qty_tiers||[]).filter(t=>Number(t.off)>0).sort((a,b)=>a.min-b.min);return T.length?`<div class="c" id="slt-qty"><b>خصم الكمية</b><div class="m" style="font-size:13px;margin-top:4px">${T.map(t=>`من ${t.min} أزواج في الأوردر: تكلفتك تقل ${money(t.off)} ج.م على كل زوج`).join("<br>")}</div></div>`:""})()}
   ${slBadgesUI()}
-  <div class="row2"><b>آخر أوردراتي</b><button class="chip" data-go="ord" style="height:34px">عرض الكل</button></div>
+  <div class="row2" id="slt-recent"><b>آخر أوردراتي</b><button class="chip" data-go="ord" style="height:34px">عرض الكل</button></div>
   ${SL.ord.slice(0,3).map(o=>slOrd(o)).join("")||'<div class="c m">لسه مفيش أوردرات. اختاري منتجات من الكتالوج وسجّلي أول أوردر.</div>'}`;
 }
 function slOrd(o,act){
@@ -897,7 +938,7 @@ async function showProof(path){
 async function upProof(inp,sid){const f=inp&&inp.files&&inp.files[0];if(!f)return "";const path=sid+"/"+Date.now()+".jpg",{error}=await sb.storage.from("payout-proofs").upload(path,await shrink(f),{contentType:"image/jpeg"});if(error){alert("فشل رفع صورة التحويل: "+error.message);return null}return path}
 function slBind(){
   const on=(s,fn)=>A().querySelectorAll(s).forEach(e=>e.onclick=()=>fn(e)),go=t=>{SL.tab=t;SL.brand=null;if(t!=="nw"&&t!=="cat"&&SL.edit){SL.edit=null;SL.cart={};SL.f={}}slRender();window.scrollTo(0,0)};
-  on("[data-go]",e=>go(e.dataset.go));on("#slo",logout);on("[data-of]",e=>{SL.of=e.dataset.of;slRender()});
+  on("[data-go]",e=>go(e.dataset.go));on("#slo",logout);on("#sltour",()=>tourStart());on("[data-of]",e=>{SL.of=e.dataset.of;slRender()});
   on("[data-br]",e=>{SL.brand=e.dataset.br;slRender();window.scrollTo(0,0)});on("[data-bk]",()=>{SL.brand=null;slRender()});
   on("[data-ov]",e=>{SL.ov=e.dataset.ov;slRender()});
   on("[data-gal]",e=>{const c=(SL.cat.items||[]).find(i=>String(i.sid)===e.dataset.gal);if(!c||!c.imgs)return;let o=document.getElementById("slgal");if(o)o.remove();o=document.createElement("div");o.id="slgal";o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:60;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:12px";
