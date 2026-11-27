@@ -159,6 +159,7 @@ async function load(){
   if(S.role==="admin"||S.role==="mod"){const {data}=await sb.from("orders").select("id,no,order_date,customer,phone,zone,status_at,total,waybill").eq("status","indelivery").lte("status_at",new Date(Date.now()-5*864e5).toISOString()).order("status_at");S.late=data||[]}
   {const {count}=await sb.from("orders").select("id",{count:"exact",head:true}).eq("status","new");S.newc=count||0}
   if(S.tab==="home"){let all=[],from=0;const ms=today().slice(0,8)+"01";while(true){const {data}=await sb.from("orders").select("order_date,status,total,source,lines,kind").gte("order_date",ms).range(from,from+999);all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}S.dash=all}
+  if(S.role==="admin"&&(S.tab==="home"||S.tab==="export")){const {data:lb}=await sb.from("app_settings").select("value").eq("key","last_backup").maybeSingle();S.lastBk=lb&&lb.value||null;S.lbLoaded=true}
   if(S.tab==="kan"){const d7=new Date(Date.now()-7*864e5),ds=d7.getFullYear()+"-"+String(d7.getMonth()+1).padStart(2,"0")+"-"+String(d7.getDate()).padStart(2,"0");S.kan=await fetchAll("orders",q=>q.or("status.in.(new,preparing,shipped,indelivery),and(status.eq.delivered,order_date.gte."+ds+")").order("order_date").order("no"))}
   if(S.tab==="zones"||(S.tab==="new"&&!S.zones.length)){const {data}=await sb.from("ship_zones").select("*").order("sort");S.zones=data||[]}
   if(S.tab==="contacts"){S.contacts=await fetchAll("contacts",q=>q.order("created_at",{ascending:false}))}
@@ -471,6 +472,8 @@ function homeView(){
   const c=(a,f)=>a.filter(f).length,sum=a=>a.filter(o=>o.status!=="cancelled"&&o.kind!=="replacement").reduce((s,o)=>s+(Number(o.total)||0),0),dv=a=>a.filter(o=>o.status==="delivered"&&o.kind!=="replacement").reduce((s,o)=>s+(Number(o.total)||0),0);
   const cd=(n,l)=>`<div><b>${n}</b>${l}</div>`,sec=(ti,b)=>`<div class="card"><b>${ti}</b>${b}</div>`;
   let h=`<div class="m" style="margin-bottom:6px">النهارده (${t})</div><div class="stats">${cd(td.length,"أوردرات اليوم")}${cd(c(td,o=>o.status==="new"),"جديدة")}${cd(c(td,o=>o.status==="preparing"),"جاري التجهيز")}${cd(c(td,o=>["shipped","indelivery"].includes(o.status)),"تم الشحن")}${cd(c(td,o=>o.status==="delivered"),"تم التسليم")}${cd(c(td,o=>o.status==="cancelled"),"ملغية")}</div>`;
+  if(adm&&S.lbLoaded){const dd=S.lastBk?Math.floor((Date.now()-new Date(S.lastBk.at))/864e5):null;
+    h+=dd===null||dd>=7?`<div class="card" style="border:1.5px solid var(--bad,#c0392b)"><b>🛡️ ${dd===null?"لسه ماعملتيش نسخة احتياطية كاملة":"آخر نسخة احتياطية من "+dd+" يوم"}</b><p class="m">الداتا على Supabase المجاني من غير نسخ تلقائي. اعملي نسخة كل أسبوع (دقيقة واحدة).</p><button class="btn" data-nt="export">اعملي نسخة دلوقتي</button></div>`:`<div class="m" style="margin-bottom:6px">🛡️ آخر نسخة احتياطية من ${dd} يوم ✅</div>`}
   if(adm){
     const done=c(all,o=>o.status==="delivered"),fail=c(all,o=>["refused","cancelled","unavailable"].includes(o.status));
     h+=`<div class="m" style="margin-bottom:6px">المبيعات</div><div class="stats">${cd(money(sum(td)),"مبيعات اليوم (مسجّلة)")}${cd(money(dv(td)),"مبيعات اليوم (مسلّمة)")}${cd(money(sum(all)),"مبيعات الشهر (مسجّلة)")}${cd(money(dv(all)),"مبيعات الشهر (مسلّمة)")}${(()=>{const p=done+fail?Math.round(done/(done+fail)*100):0,L=2*Math.PI*21;return `<div><svg width="52" height="52" viewBox="0 0 52 52" style="display:block;margin:0 auto 2px" aria-hidden="true"><circle cx="26" cy="26" r="21" fill="none" stroke="var(--soft)" stroke-width="6"/><circle cx="26" cy="26" r="21" fill="none" stroke="var(--ok)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(L*p/100).toFixed(1)} ${L.toFixed(1)}" transform="rotate(-90 26 26)"/><circle cx="26" cy="26" r="8" fill="var(--pr)"/></svg><b>${done+fail?p+"%":"-"}</b>معدل نجاح الأوردرات</div>`})()}</div>`;
@@ -504,7 +507,7 @@ async function moveTo(id,st){const {error}=await sb.from("orders").update({statu
 async function xl(){if(window.XLSX)return;await new Promise((ok,no)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 async function fetchAll(table,f){let all=[],from=0;while(true){let q=sb.from(table).select("*");if(f)q=f(q);const {data,error}=await q.range(from,from+999);if(error)throw error;all=all.concat(data||[]);if(!data||data.length<1000)break;from+=1000}return all}
 const orow=o=>({"رقم":o.no,"التاريخ":o.order_date,"العميلة":o.customer,"التليفون":o.phone,"المنطقة":o.zone,"العنوان":o.address,"البروفايل":o.profile_name,"المصدر":SRC[o.source]||"","السيلر":(S.snames||{})[o.seller_id]||"","المحتويات":o.items,"السعر":o.price,"الشحن":o.ship_fee,"الإجمالي":o.total,"الحالة":ST[o.status]||o.status,"ملاحظات":o.notes,"ملاحظة المجهّز":o.ship_note,"رقم البوليصة":o.waybill,"النوع":o.kind==="replacement"?"بدل تالف":"عادي","الأوردر الأصلي":o.ref_order||""});
-function exportView(){return `<div class="card"><b>تصدير إكسل (للأدمن)</b><div class="row"><div><label>من</label><input type="date" id="xf" value="${S.rf}"></div><div><label>إلى</label><input type="date" id="xt" value="${S.rt}"></div></div><div class="row"><button class="btn" id="xo">📊 تصدير الأوردرات + ملخص يومي</button><button class="btn sec" id="xb">💾 نسخة احتياطية كاملة</button></div><div class="m" id="xmsg" style="margin-top:8px"></div></div>`}
+function exportView(){const lb=S.lastBk,dd=lb?Math.floor((Date.now()-new Date(lb.at))/864e5):null;return `<div class="card"><b>🛡️ نسخة احتياطية كاملة</b><p class="m">ملف واحد فيه كل جداول السيستم والموقع (أوردرات، مخزون، تكاليف، سيلرات ومحافظ، منتجات الموقع، عروض، كوبونات، صلاحيات، سجل التعديلات...). أي جدول جديد بيدخل لوحده. احتفظي بالملف في مكان خاص: فيه تكاليف وتليفونات عملاء.</p><div class="note">${lb?"آخر نسخة: "+new Date(lb.at).toLocaleString("ar-EG",{timeZone:"Africa/Cairo"})+" (من "+dd+" يوم) · "+lb.tables+" جدول · "+lb.rows+" صف":"لسه ماعملتيش نسخة كاملة."}</div><button class="btn" id="xfb">🛡️ تنزيل النسخة الكاملة (JSON)</button><div class="m" id="xmsg2" style="margin-top:8px"></div></div><div class="card"><b>♻️ تجهيز ملف الاسترجاع</b><p class="m">اختاري ملف النسخة اللي نزّلتيه، واختاري الجداول، وهيتجهّز ملف SQL تشغّليه في Supabase (SQL Editor). مفيش أي حاجة بتتغيّر من هنا.</p><input type="file" id="xrf" accept=".json,application/json"><div id="xrbox"></div></div><div class="card"><b>تصدير إكسل (للأدمن)</b><div class="row"><div><label>من</label><input type="date" id="xf" value="${S.rf}"></div><div><label>إلى</label><input type="date" id="xt" value="${S.rt}"></div></div><div class="row"><button class="btn" id="xo">📊 تصدير الأوردرات + ملخص يومي</button><button class="btn sec" id="xb">💾 إكسل مبسّط (أوردرات/مخزون/شحن)</button></div><div class="m" id="xmsg" style="margin-top:8px"></div></div>`}
 async function doExport(){
   const m=$("#xmsg");m.textContent="جاري التجهيز...";
   try{await xl();const f=$("#xf").value,t=$("#xt").value,all=await fetchAll("orders",q=>q.gte("order_date",f).lte("order_date",t).order("order_date").order("no")),days={};
@@ -521,6 +524,50 @@ async function doBackup(){
     XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(z.map(x=>({"المنطقة":x.name,"الشحن":x.fee}))),"أسعار الشحن");
     XLSX.writeFile(wb,"backup-"+today()+".xlsx");m.textContent="تم تنزيل النسخة الاحتياطية ("+o.length+" أوردر)"}
   catch(e){m.textContent="تعذر التصدير: "+(e.message||"تأكد من الاتصال")}
+}
+async function doFullBackup(){
+  const m=$("#xmsg2"),b=$("#xfb");b.disabled=true;
+  try{
+    m.textContent="بقرا قايمة الجداول...";
+    const {data:meta,error:e0}=await sb.rpc("backup_meta");if(e0)throw e0;
+    const data={},warn=[];let n=0,rows=0;
+    for(const t of meta){n++;let off=0,arr=[];
+      while(true){m.textContent="جاري نسخ "+t.name+" ("+n+"/"+meta.length+")... "+arr.length+" صف";
+        const {data:p,error}=await sb.rpc("backup_page",{p_table:t.name,p_off:off,p_lim:1000});if(error)throw new Error(t.name+": "+(error.message||error));
+        arr=arr.concat(p||[]);if(!p||p.length<1000)break;off+=1000}
+      if(arr.length<Number(t.rows))warn.push(t.name);
+      data[t.name]=arr;rows+=arr.length}
+    const at=new Date().toISOString(),file={app:"classy-orders",format:1,at,meta,data},txt=JSON.stringify(file);
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download="classy-backup-"+today()+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+    S.lastBk={at,tables:meta.length,rows};
+    const {error:e2}=await sb.from("app_settings").upsert({key:"last_backup",value:S.lastBk});
+    m.textContent="تم تنزيل النسخة: "+meta.length+" جدول، "+rows+" صف، "+(txt.length/1048576).toFixed(1)+" MB."+(warn.length?" تنبيه: "+warn.join("، ")+" اتغيّر أثناء النسخ، اعمليها تاني لو محتاجة دقة.":"")+(e2?" (ماقدرتش أسجّل تاريخ النسخة)":"");
+  }catch(e){m.textContent="تعذر عمل النسخة: "+(e.message||"تأكدي من الاتصال")+((e.message||"").includes("backup_")?" (شغّلي SQL 32 الأول)":"")}
+  b.disabled=false;
+}
+function bkSql(file,sel,mode){
+  let n=0,tag="bk";const raw=JSON.stringify(file.data);while(raw.includes("$"+tag+"$")||raw.includes("$"+tag+"x$"))tag="bk"+(++n);const d="$"+tag+"$",dx="$"+tag+"x$",q=x=>'"'+String(x).replace(/"/g,'""')+'"';
+  const o=["-- Classy Eyes restore — من نسخة "+file.at,"-- الوضع: "+(mode==="over"?"رجّع الكل واكتب فوق الموجود":"رجّع المحذوف بس (ما بيلمسش الموجود)"),"begin;","set local session_replication_role = replica;"];
+  (file.meta||[]).filter(t=>sel.includes(t.name)).forEach(t=>{
+    const rows=file.data[t.name]||[];if(!rows.length){o.push("-- "+t.name+": فاضي");return}
+    const cols=t.cols.filter(c=>!c.g).map(c=>c.n),cl=cols.map(q).join(","),pk=t.pk||[],upd=cols.filter(c=>!pk.includes(c)),tn="public."+q(t.name);
+    const oc=mode==="over"&&pk.length&&upd.length?" on conflict ("+pk.map(q).join(",")+") do update set "+upd.map(c=>q(c)+"=excluded."+q(c)).join(","):" on conflict do nothing";
+    const ins=[];for(let i=0;i<rows.length;i+=500)ins.push("insert into "+tn+" ("+cl+") overriding system value select "+cl+" from jsonb_populate_recordset(null::"+tn+", "+d+JSON.stringify(rows.slice(i,i+500))+d+"::jsonb)"+oc+";");
+    if(pk.length){o.push("-- "+t.name+" ("+rows.length+")");ins.forEach(x=>o.push(x))}
+    else{o.push("-- "+t.name+" ("+rows.length+") — من غير مفتاح أساسي: بيترجّع بس لو الجدول فاضي دلوقتي");o.push("do "+dx+" begin if not exists (select 1 from "+tn+") then\n"+ins.join("\n")+"\nend if; end "+dx+";")}
+    (t.serials||[]).forEach(x=>o.push("select setval('"+x.seq+"', greatest((select coalesce(max("+q(x.col)+"),1) from "+tn+"),1));"));
+  });
+  o.push("commit;");return o.join("\n")
+}
+function bkPick(e){
+  const f=e.files&&e.files[0],box=$("#xrbox");if(!f)return;box.innerHTML='<div class="m">بقرا الملف...</div>';
+  const r=new FileReader();r.onerror=()=>{box.innerHTML='<div class="note">تعذر قراءة الملف.</div>'};
+  r.onload=()=>{let j;try{j=JSON.parse(r.result)}catch(x){box.innerHTML='<div class="note">الملف مش نسخة صالحة.</div>';return}
+    if(j.app!=="classy-orders"||!j.meta||!j.data){box.innerHTML='<div class="note">ده مش ملف نسخة احتياطية من السيستم.</div>';return}
+    box.innerHTML='<div class="m" style="margin:8px 0">نسخة بتاريخ '+new Date(j.at).toLocaleString("ar-EG",{timeZone:"Africa/Cairo"})+'</div><div style="max-height:220px;overflow:auto;border:1px solid var(--line,#ddd);border-radius:8px;padding:6px">'+j.meta.map(t=>'<label style="display:flex;gap:8px;align-items:center;margin:3px 0"><input type="checkbox" data-bkt="'+qa(t.name)+'" checked><span>'+esc(t.name)+' <span class="m">('+(j.data[t.name]||[]).length+')</span></span></label>').join("")+'</div><label style="display:flex;gap:8px;margin:8px 0"><input type="radio" name="xrm" value="miss" checked><span>رجّع المحذوف بس (الموجود ما يتلمسش) — الأكثر أمانًا</span></label><label style="display:flex;gap:8px;margin:8px 0"><input type="radio" name="xrm" value="over"><span>رجّع الكل واكتب فوق الموجود (بيرجّع القيم القديمة)</span></label><button class="btn" id="xrg">📜 تنزيل ملف الاسترجاع (SQL)</button><div class="note" style="margin-top:8px">الملف بيتشغّل في Supabase ← SQL Editor. بيعطّل التريجرز جوّه العملية دي بس، فالمخزون والأرصدة بترجع زي ما كانت في النسخة. حسابات الدخول (الإيميلات) مش جوّه النسخة.</div>';
+    $("#xrg").onclick=()=>{const sel=[...document.querySelectorAll("[data-bkt]")].filter(c=>c.checked).map(c=>c.dataset.bkt),mode=(document.querySelector('input[name="xrm"]:checked')||{}).value||"miss";
+      if(!sel.length)return;const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([bkSql(j,sel,mode)],{type:"text/plain;charset=utf-8"}));a.download="classy-restore-"+today()+".sql";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000)}};
+  r.readAsText(f)
 }
 const FN={customer:"الاسم",phone:"التليفون",address:"العنوان",zone:"المنطقة",items:"المحتويات",price:"السعر",ship_fee:"الشحن",notes:"ملاحظات",ship_note:"ملاحظة المجهّز"};
 async function showLog(id){
@@ -750,7 +797,7 @@ function bind(){
   on("[data-mv]","change",e=>moveTo(e.dataset.mv,e.value));
   A().querySelectorAll("[data-card]").forEach(c=>{c.ondragstart=ev=>ev.dataTransfer.setData("text/plain",c.dataset.card)});
   A().querySelectorAll("[data-col]").forEach(c=>{c.ondragover=ev=>ev.preventDefault();c.ondrop=ev=>{ev.preventDefault();const id=ev.dataTransfer.getData("text/plain");if(id)moveTo(id,c.dataset.col)}});
-  on("#xo","click",doExport);on("#xb","click",doBackup);
+  on("#xo","click",doExport);on("#xb","click",doBackup);on("#xfb","click",doFullBackup);on("#xrf","change",bkPick);
   on("[data-rt]","click",e=>returnPieces(e.dataset.rt));
   on("[data-lg]","click",e=>showLog(e.dataset.lg));
   on("#zq","input",e=>{const f=e.value.trim();A().querySelectorAll("[data-zs]").forEach(r=>r.style.display=!f||r.dataset.zs.includes(f)?"":"none")});
