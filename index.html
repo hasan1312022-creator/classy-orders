@@ -902,6 +902,165 @@ const ICO={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-
 const SLST={new:["جديد","no"],preparing:["جاري التجهيز","bl"],shipped:["تم الشحن","bl"],indelivery:["قيد التوصيل","bl"],unavailable:["غير متوفر","lo"],delivered:["تم التسليم","ok"],refused:["العميل رفض الاستلام","lo"],partial:["استلام جزئي","lo"],cancelled:["ملغي","lo"]};
 const slst=o=>o.seller_review==="pending"?["بانتظار المراجعة","no"]:o.seller_review==="rejected"?["مرفوض","lo"]:(SLST[o.status]||["",""]);
 const STK={ok:["متوفر","ok"],low:["كمية قليلة","lo"],out:["نفد","no"]};
+/* ===== مساعد السيلر: قواعد بدون سيرفر ولا تكلفة، بيقرا بس من بيانات السيلر نفسها ===== */
+const SLA={open:false,msgs:[]};
+const slD=s=>String(s==null?"":s).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d));
+const slQ=s=>slN(slD(s)).replace(/[؟?!.,،؛:"'()\[\]]/g," ").replace(/\s+/g," ").trim();
+const SLK={ب:"b",ت:"t",ث:"s",ج:"j",خ:"k",د:"t",ذ:"s",ر:"r",ز:"s",س:"s",ش:"s",ص:"s",ض:"t",ط:"t",ظ:"s",غ:"k",ف:"f",ق:"k",ك:"k",ل:"l",م:"m",ن:"n",پ:"b",گ:"k",چ:"j",ڤ:"f"},SLKL={s:"s",z:"s",x:"s",c:"k",q:"k",g:"k",k:"k",t:"t",d:"t",b:"b",p:"b",f:"f",v:"f",j:"j",r:"r",l:"l",m:"m",n:"n"};
+const slSk=w=>{let o="";for(const c of String(w).toLowerCase()){let x=SLK[c];if(x===undefined)x=SLKL[c]||"";if(x&&o[o.length-1]!==x)o+=x}return o};
+const SLAL={رمادي:["gray","grey","silver"],رصاصي:["gray","grey"],بني:["brown"],اسود:["black"],ازرق:["blue"],اخضر:["green"],عسلي:["honey","hazel"],بنفسجي:["purple","violet"],وردي:["pink","rose"],بيج:["beige"],ابيض:["white"],اصفر:["yellow"],ذهبي:["gold"],لاتيه:["latte"],فيروزي:["turquoise","aqua"],كحلي:["navy"],احمر:["red"],رمادى:["gray","grey"]};
+const SLSTOP=new Set("في من علي عن هل ده دي دا كام بكام بكم سعر سعره اسعار تمن ثمن تكلفه تكلف متوفر متوفره موجود موجوده فاضل فاضله فاضلين عندكم عندك عندنا لو بعت بيع ببيع هبيع هكسب ربح مكسب اكسب بكسب كسب عموله قطعه قطع زوج ازواج زوجين عدسه عدسات لون الوان ايه اي انهي هو هي انا عايزه عايز محتاجه ممكن يا بس كمان طيب و ب مع الي اللي بتاع بتاعه نفد خلص خلصت ستوك كميه منتج منتجات صنف وصل جديد بقي بقا تمام".split(" "));
+const SLNUM={اتنين:2,زوجين:2,تلاته:3,اربعه:4,خمسه:5,سته:6,سبعه:7,تمانيه:8,تسعه:9,عشره:10};
+const slTok=(t,words)=>{if(words.includes(t))return true;if(t.length>=3&&words.some(w=>w.length>=3&&(w.startsWith(t)||t.startsWith(w))))return true;const al=SLAL[t];if(al&&words.some(w=>al.includes(w)))return true;const k=slSk(t);return k.length>=2&&t.length>=3&&words.some(w=>w.length>=3&&slSk(w)===k)};
+const slHas=(q,re)=>re.test(q);
+function slaFind(q){
+  const toks=q.split(" ").filter(w=>w&&!/^\d+(\.\d+)?$/.test(w)).map(w=>w.length>4?w.replace(/^ال/,""):w).map(w=>w.replace(/^ب(?=\d)/,"")).filter(w=>w.length>1&&!SLSTOP.has(w));
+  if(!toks.length)return {toks,list:[]};
+  const pool=[];
+  (SL.cat.items||[]).forEach(i=>pool.push({k:"l",i,t:slN(i.brand+" "+i.color)}));
+  (SL.cat.acc||[]).forEach(a=>pool.push({k:"a",i:a,t:slN(slAN(a)+" "+(ACCK[a.kind]||""))}));
+  pool.forEach(p=>{const w=p.t.split(/[^a-z؀-ۿ0-9]+/).filter(Boolean);p.s=toks.filter(t=>slTok(t,w)).length});
+  const mx=Math.max(0,...pool.map(p=>p.s));
+  return {toks,list:mx?pool.filter(p=>p.s===mx):[],full:mx===toks.length}
+}
+const slaName=p=>p.k==="l"?p.i.brand+" "+p.i.color:slAN(p.i);
+const slaTag=p=>{const s=STK[p.i.st]||STK.ok;return `<span class="tag ${s[1]}">${s[0]}</span>`};
+const slaActs=(...a)=>`<div class="aia">${a.map(x=>`<button class="chip" data-aigo="${x[0]}">${x[1]}</button>`).join("")}</div>`;
+function slaNums(raw){
+  const d=slD(raw),all=(d.match(/\d+(?:\.\d+)?/g)||[]).map(Number);
+  let n=0;const m=d.match(/(\d+)\s*(?:ازواج|أزواج|زوج|قطع|عدس)/);if(m)n=Number(m[1]);
+  if(!n){const q=slQ(raw);Object.keys(SLNUM).forEach(k=>{if(!n&&new RegExp("(^| )"+k+"( |$)").test(q))n=SLNUM[k]})}
+  const price=all.filter(x=>x>=30&&x!==n).sort((a,b)=>b-a)[0]||0;
+  return {n:n||1,price,had:!!n}
+}
+function slaList(l,max){return l.slice(0,max).map(p=>`<div class="row2" style="padding:5px 0"><span>${esc(slaName(p))}</span>${slaTag(p)}</div>`).join("")+(l.length>max?`<div class="m" style="font-size:12px">و ${l.length-max} صنف كمان. اكتبي اسم أدق.</div>`:"")}
+function slaStock(f){
+  const l=f.list;if(!l.length)return slaNone();
+  return `<b>الحالة دلوقتي:</b>${slaList(l,10)}<div class="m" style="font-size:12px;margin-top:4px">الكمية بالرقم مابتظهرش للسيلرات، بس الحالة (متوفر / قليلة / نفد).</div>${slaActs(["cat","افتحي الكتالوج"])}`
+}
+function slaPrice(f,nm){
+  const l=f.list;if(!l.length)return slaNone();
+  const rows=l.slice(0,10).map(p=>{const off=p.k==="l"?slOffPer(nm.n):0,u=Number(p.i.price)-off;
+    return `<div class="row2" style="padding:5px 0"><span>${esc(slaName(p))}</span><b>${money(nm.n>1?u*nm.n:u)} ج.م${nm.n>1?" ("+nm.n+")":""}</b></div>`}).join("");
+  const tier=(nm.n===1&&(SL.cat.qty_tiers||[]).filter(t=>Number(t.off)>0).sort((a,b)=>a.min-b.min)[0])||null;
+  return `<b>سعرك (تكلفتك):</b>${rows}${l.length>10?`<div class="m" style="font-size:12px">و ${l.length-10} كمان، اكتبي اسم أدق.</div>`:""}${nm.n>1&&slOffPer(nm.n)>0?`<div class="m" style="font-size:12px">محسوب بخصم الكمية (${money(slOffPer(nm.n))} ج.م على كل زوج).</div>`:""}${tier?`<div class="m" style="font-size:12px">لو الأوردر فيه ${tier.min} أزواج أو أكتر، تكلفتك تقل ${money(tier.off)} ج.م على كل زوج.</div>`:""}`
+}
+function slaProfit(f,nm){
+  const l=f.list;if(!l.length)return slaNone();
+  const del=Number((SL.wal||{}).delivered)||0,tr=slTier(del);
+  if(!nm.price)return `<b>عشان أحسبلك الربح قوليلي هتبيعي بكام.</b> مثلاً: «لو بعت ${esc(slaName(l[0]))} بـ ${money(Math.round((Number(l[0].i.price)||0)*1.4/10)*10)} هكسب كام؟»<div class="m" style="font-size:12px;margin-top:4px">تكلفتك على ${esc(slaName(l[0]))}: ${money(l[0].i.price)} ج.م للزوج.</div>`;
+  const rows=l.slice(0,6).map(p=>{const off=p.k==="l"?slOffPer(nm.n):0,u=Number(p.i.price)-off,pr=(nm.price-u)*nm.n;
+    return `<div class="row2" style="padding:5px 0"><span>${esc(slaName(p))}<span class="m" style="font-size:12px"> · تكلفة ${money(u)}</span></span><b style="color:${pr>=0?"#0B5E54":"#8A3F0A"}">${pr>=0?"+":""}${money(pr)} ج.م</b></div>`}).join("");
+  return `<b>لو بعتي بـ ${money(nm.price)} ج.م للزوج${nm.n>1?" (عدد "+nm.n+")":""}:</b>${rows}<div class="m" style="font-size:12px;margin-top:4px">الشحن بيتحصّل من العميلة ومش داخل في الحساب.${tr.pct?" ومستواك ("+esc(tr.name)+") بيضيف +"+tr.pct+"% على العمولة بعد التسليم.":""} الرقم تقريبي، والعمولة النهائية بتتحدد وقت تسجيل الأوردر.</div>`
+}
+function slaWallet(){
+  const w=SL.wal||{},hd=SL.cat&&SL.cat.hold_days;
+  return `<b>محفظتك:</b><div class="row2" style="padding:4px 0"><span>المتاح للسحب</span><b>${money(w.available)} ج.م</b></div><div class="row2" style="padding:4px 0"><span>قيد الانتظار</span><b>${money(w.pending)} ج.م</b></div><div class="row2" style="padding:4px 0"><span>إجمالي الأرباح</span><b>${money(w.earned)} ج.م</b></div><div class="m" style="font-size:12px;margin-top:4px">${hd!=null?"العمولة بتبقى متاحة بعد "+hd+" يوم من التسليم.":""}</div>${slaActs(["wal","افتحي المحفظة"])}`
+}
+function slaTier(){
+  const w=SL.wal||{},del=Number(w.delivered)||0,t=slTier(del),g=w.goal||{},go=Number(g.orders)||0,md=Number(w.month_delivered)||0;
+  return `<b>مستواكِ: ${esc(t.name)}</b><div class="m" style="font-size:13px;margin-top:4px">${t.left?"باقي "+t.left+" أوردر مسلّم لمستوى "+esc(t.next):"أعلى مستوى"}${t.pct?" · مزيّتك +"+t.pct+"% على العمولة":""}</div>${go?`<div class="m" style="font-size:13px;margin-top:6px">هدف الشهر: ${md} / ${go} أوردر مسلّم${md>=go?" ✅":" (باقي "+(go-md)+")"}${Number(g.bonus)>0?" · مكافأة "+money(g.bonus)+" ج.م":""}</div>`:""}${slaActs(["home","الرئيسية"])}`
+}
+function slaShip(q){
+  const z=(SL.cat.zones||[]).filter(z=>slQ(z.name).split(" ").some(w=>{const st=w.replace(/^ال/,"");return st.length>=3&&q.includes(st)}));
+  if(!z.length)return null;
+  return `<b>الشحن:</b>${z.slice(0,6).map(x=>`<div class="row2" style="padding:5px 0"><span>${esc(x.name)}</span><b>${money(x.fee)} ج.م</b></div>`).join("")}<div class="m" style="font-size:12px">بيتحصّل من العميلة.</div>`
+}
+function slaOrders(raw,q){
+  const o0=SL.ord||[],d=slD(raw);let l=o0.slice();
+  const lab=[];
+  const ph=d.match(/\d{8,}/),m=ph?null:(d.match(/#\s*(\d{1,7})(?!\d)/)||d.match(/(?:اوردر|أوردر|رقم)\s*#?\s*(\d{1,7})(?!\d)/));
+  if(m||ph){
+    const hit=m?o0.filter(o=>String(o.no)===m[1]):o0.filter(o=>normPhone(o.phone)===normPhone(ph[0]));
+    if(!hit.length)return `<b>مالقيتش الأوردر ده في أوردراتك.</b>`;
+    return hit.slice(0,3).map(o=>slOrd(o)).join("")
+  }
+  const SG=[[/(اتسلم|تسلم|سلمت|اتسلمت|تم التسليم|مسلم)/,["delivered"],"المسلّمة"],[/(لسه|معلق|بتتجهز|جاري|جديد|مجهزش|متشحن|ماتشحن|مااتشحن|ما اتشحن)/,["new","preparing"],"اللي لسه ماتشحنتش"],[/(اتشحن|شحنت|في الطريق|قيد التوصيل|اتشحنت|مشحون)/,["shipped","indelivery"],"اللي اتشحنت"],[/(مرتجع|رفض|رافض|جزئي)/,["refused","partial"],"المرتجعة/المرفوضة"],[/(ملغي|الغي|ملغيه|ملغاه)/,["cancelled"],"الملغية"],[/(غير متوفر|مش متوفر)/,["unavailable"],"غير المتوفرة"]];
+  const sg=SG.find(x=>x[0].test(q));
+  if(sg){l=l.filter(o=>sg[1].includes(o.status)&&o.seller_review!=="rejected");lab.push(sg[2])}
+  const ym=today().slice(0,7);
+  if(/(انهارده|النهارده|اليوم|دلوقتي)/.test(q)){l=l.filter(o=>o.order_date===today());lab.push("النهارده")}
+  else if(/(الشهر|شهري)/.test(q)){l=l.filter(o=>String(o.order_date).slice(0,7)===ym);lab.push("الشهر ده")}
+  const nm=q.split(" ").filter(w=>w.length>=3&&!SLSTOP.has(w)&&!/(اوردر|اوردرات|طلب|طلبات|اتسلم|تسلم|اتشحن|انهارده|النهارده|الشهر|شهري|لسه|مرتجع|ملغي|عندي|حالت|حاله|فين|كام|هي|دلوقتي)/.test(w));
+  const byName=nm.length?l.filter(o=>nm.every(w=>slHit(o.customer,w))):[];
+  if(byName.length&&!sg&&!lab.length)return byName.slice(0,4).map(o=>slOrd(o)).join("")+(byName.length>4?`<div class="m" style="font-size:12px">و ${byName.length-4} كمان.</div>`:"");
+  const sum=l.reduce((a,o)=>a+(o.status==="delivered"?Number(o.seller_commission)||0:0),0);
+  return `<b>${lab.length?"الأوردرات "+lab.join(" · "):"آخر أوردراتك"}: ${l.length}</b>${l.slice(0,4).map(o=>slOrd(o)).join("")||'<div class="m">مفيش أوردرات بالشكل ده.</div>'}${l.length>4?`<div class="m" style="font-size:12px">و ${l.length-4} كمان في صفحة أوردراتي.</div>`:""}${sg&&sg[1].includes("delivered")&&l.length?`<div class="m" style="font-size:12px">إجمالي عمولتها: ${money(sum)} ج.م</div>`:""}${slaActs(["ord","كل أوردراتي"])}`
+}
+function slaHow(q){
+  if(/(الغ|الغاء|الغي)/.test(q))return `<b>إلغاء أوردر:</b><div class="m" style="margin-top:4px">من «أوردراتي» اختاري الأوردر واضغطي «إلغاء الأوردر». متاح لحد ما يتشحن.</div>${slaActs(["ord","أوردراتي"])}`;
+  if(/(عدل|تعديل|غير)/.test(q))return `<b>تعديل أوردر:</b><div class="m" style="margin-top:4px">من «أوردراتي» اضغطي «تعديل». متاح لحد ما الأوردر يتشحن.</div>${slaActs(["ord","أوردراتي"])}`;
+  if(/(سحب|اسحب|تحويل|حول)/.test(q))return `<b>السحب:</b><div class="m" style="margin-top:4px">من «محفظتي» اضغطي طلب سحب لما يبقى عندك رصيد متاح.</div>${slaActs(["wal","محفظتي"])}`;
+  return `<b>تسجيل أوردر:</b><div class="m" style="margin-top:4px">اختاري المنتجات من الكتالوج، وبعدها من «أوردر جديد» اكتبي بيانات العميلة وسعر البيع.</div>${slaActs(["cat","الكتالوج"],["nw","أوردر جديد"])}`
+}
+function slaNone(){
+  const b=slBrands().map(x=>x.brand).slice(0,6);
+  return `<b>مالقيتش المنتج ده.</b><div class="m" style="margin-top:4px">اكتبي اسم البراند واللون، مثلاً: ${b.map(x=>"«"+esc(x)+"»").join(" أو ")||"من الكتالوج"}.</div>${slaActs(["cat","افتحي الكتالوج"])}`
+}
+function slaChips(){
+  const b=(slBrands()[0]||{}),c=(b.cols||[])[0],p=c?c.brand+" "+c.color:"";
+  return [p?p+" متوفر؟":"",p?"بكام "+p+"؟":"",p?"لو بعت "+p+" بـ "+(Math.round((Number(c.price)||0)*1.4/10)*10||400)+" هكسب كام؟":"","رصيدي كام؟","أوردرات النهارده","أوردرات لسه ماتشحنتش","مستواي إيه؟"].filter(Boolean)
+}
+function slaAnswer(raw){
+  const q=slQ(raw);
+  if(!q)return "";
+  if(/^(ازيك|اهلا|هاي|سلام|صباح|مساء|هلا|مرحبا|ايه اخبارك)/.test(q)&&q.split(" ").length<=3)return `أهلاً بيكي 🌸 اسأليني عن المخزون والأسعار والأرباح والمحفظة والأوردرات.`;
+  const nm=slaNums(raw);
+  const money_=/(هكسب|ربح|مكسب|اكسب|بكسب|كسبي|كسب|عموله)/.test(q),priceQ=/(سعر|بكام|بكم|تكلف|تمن|ثمن|اسعار)/.test(q),stockQ=/(متوفر|موجود|فاضل|عندكم|عندك|نفد|خلص|ستوك|كميه|وصل)/.test(q),ordQ=/(^| )(ال)?(اوردر|اوردرات|طلب|طلبات)( |$)|#\s*\d/.test(q)||/\d{7,}/.test(slD(raw));
+  if(/(ازاي|كيف|طريقه)/.test(q)||/^(الغي|الغاء|عدل|اسحب|سجل)/.test(q)){const w=slaHow(q);if(!money_&&!priceQ)return w}
+  if(/(شحن|توصيل|مصاريف)/.test(q)&&!ordQ&&!/(اتشحن|شحنت)/.test(q)){const z=slaShip(q);if(z)return z}
+  if(ordQ&&!money_&&!priceQ)return slaOrders(raw,q);
+  if(/(رصيد|محفظ|فلوسي|مستحق|ارباحي|ربحي|ارباح|سحب|اسحب|تحويل)/.test(q)&&!ordQ){const f0=slaFind(q);if(!f0.list.length||f0.toks.every(t=>/(رصيد|محفظ|فلوسي|مستحق|ارباحي|ربحي|ارباح|سحب|اسحب|تحويل|كام|ليا|بتاعي|عندي)/.test(t)))return /(سحب|اسحب|تحويل)/.test(q)&&/(ازاي|اعمل|اطلب|عايزه)/.test(q)?slaHow(q):slaWallet()}
+  if(/(مستوي|مستوا|مستوى|هدف|لفل|مكافا|ترتيبي)/.test(q))return slaTier();
+  const f=slaFind(q);
+  if(money_)return slaProfit(f,nm);
+  if(priceQ)return slaPrice(f,nm);
+  if(stockQ)return slaStock(f);
+  if(f.list.length)return `${f.full?"":'<div class="m" style="font-size:12px;margin-bottom:4px">مش لاقية بالظبط اللي كتبتيه، دي أقرب حاجة:</div>'}${slaPrice(f,nm)}${slaStock(f).replace(/^<b>[^<]*<\/b>/,"")}`;
+  return null
+}
+async function slaAsk(raw){
+  raw=String(raw||"").trim();if(!raw)return;
+  SLA.msgs.push({me:1,h:esc(raw)});slaDraw();
+  if(!SL.t||Date.now()-SL.t>60000){try{await slLoad()}catch(e){}}
+  let r=null;try{r=slaAnswer(raw)}catch(e){r=null}
+  if(r===null)r=`<b>لسه ماقدرتش أفهم السؤال ده.</b><div class="m" style="margin-top:4px">جرّبي واحد من دول:</div><div class="aia">${slaChips().slice(0,4).map(c=>`<button class="chip" data-aiq="${qa(c)}">${esc(c)}</button>`).join("")}</div>`;
+  SLA.msgs.push({h:r});slaDraw()
+}
+function slaDraw(){
+  const m=$("#slam");if(!m)return;
+  m.innerHTML=SLA.msgs.map(x=>`<div class="aib ${x.me?"me":""}">${x.h}</div>`).join("");
+  m.querySelectorAll("[data-aigo]").forEach(b=>b.onclick=async()=>{SL.tab=b.dataset.aigo;SL.brand=null;slaClose();await slLoad();slRender();window.scrollTo(0,0)});
+  m.querySelectorAll("[data-aiq]").forEach(b=>b.onclick=()=>slaAsk(b.dataset.aiq));
+  m.scrollTop=m.scrollHeight
+}
+function slaClose(){const p=$("#slap");if(p)p.style.display="none";SLA.open=false}
+function slaCss(){
+  if(!$("#slacss")){const s=document.createElement("style");s.id="slacss";s.textContent=`#slai{position:fixed;bottom:80px;inset-inline-start:14px;z-index:40;border:0;border-radius:24px;background:#12284A;color:#fff;font-weight:700;font-size:14px;padding:0 16px;height:46px;box-shadow:0 6px 16px rgba(18,40,74,.35);cursor:pointer}
+#slap{position:fixed;inset:0;z-index:70;background:rgba(15,27,48,.45);display:none;align-items:flex-end;justify-content:center}
+#slap .sh{background:#F2F4F8;color:#0F1B30;width:100%;max-width:480px;height:78vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden}
+#slap .hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#12284A;color:#fff}#slap .hd button{background:none;border:0;color:#fff;font-size:22px;cursor:pointer;min-width:40px;min-height:40px}
+#slam{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.aib{background:#fff;border-radius:14px 14px 14px 4px;padding:10px 12px;max-width:92%;align-self:flex-start;font-size:14px;line-height:1.6}.aib.me{background:#12284A;color:#fff;align-self:flex-end;border-radius:14px 14px 4px 14px}
+.aib .c{margin:6px 0}.aib .tag{font-size:12px;font-weight:600;padding:2px 9px;border-radius:10px;display:inline-block;white-space:nowrap}.aib .ok{background:#DDF1EC;color:#0B5E54}.aib .lo{background:#FBE6D3;color:#8A3F0A}.aib .no{background:#E8EBF0;color:#3A465E}.aib .bl{background:#DFE8F7;color:#1D4580}
+.aib .row2{display:flex;justify-content:space-between;align-items:center;gap:8px}.aib .m{color:#4A5873}.aia{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.aia .chip,#slac .chip{border:1px solid #D5DBE6;background:#fff;color:#12284A;border-radius:18px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;max-width:100%;text-align:start}
+#slac{display:flex;gap:6px;overflow-x:auto;padding:6px 12px}#slac .chip{flex:none;white-space:nowrap}
+#slap form{display:flex;gap:8px;padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px));background:#fff}#slap input{flex:1;min-height:46px;border:1px solid #D5DBE6;border-radius:23px;padding:0 16px;font-size:16px;background:#fff;color:#0F1B30}#slap form button{border:0;border-radius:23px;background:#12284A;color:#fff;font-weight:700;padding:0 18px;min-height:46px;cursor:pointer}`;document.head.appendChild(s)}
+}
+function slaOpen(){
+  slaCss();
+  let p=$("#slap");
+  if(!p){p=document.createElement("div");p.id="slap";p.setAttribute("role","dialog");p.setAttribute("aria-label","مساعدك");
+    p.innerHTML=`<div class="sh"><div class="hd"><b>💬 مساعدك</b><button id="slax" aria-label="إغلاق">✕</button></div><div id="slam"></div><div id="slac"></div><form id="slaf"><input id="slaq" placeholder="اسأليني: سعر، مخزون، رصيد، أوردر..." autocomplete="off"><button type="submit">إرسال</button></form></div>`;
+    document.body.appendChild(p);
+    p.onclick=e=>{if(e.target===p)slaClose()};$("#slax").onclick=slaClose;
+    $("#slaf").onsubmit=e=>{e.preventDefault();const i=$("#slaq"),v=i.value;i.value="";slaAsk(v)}}
+  $("#slac").innerHTML=slaChips().slice(0,6).map(c=>`<button class="chip" data-aiq="${qa(c)}">${esc(c)}</button>`).join("");
+  $("#slac").querySelectorAll("[data-aiq]").forEach(b=>b.onclick=()=>slaAsk(b.dataset.aiq));
+  if(!SLA.msgs.length)SLA.msgs.push({h:`أهلاً بيكي 🌸 أنا مساعدك. بجاوب من بياناتك إنتي بس: <div class="m" style="margin-top:4px">• هل المنتج متوفر وسعره<br>• هتكسبي كام لو بعتي بسعر معين<br>• رصيدك ومستواك<br>• حالة أوردراتك</div>`});
+  p.style.display="flex";SLA.open=true;slaDraw();setTimeout(()=>{const i=$("#slaq");if(i)i.focus()},50)
+}
 async function sellerApp(){
   document.body.classList.remove("adm");
   if(!$("#slcss")){const s=document.createElement("style");s.id="slcss";s.textContent=SLCSS;document.head.appendChild(s)}
@@ -911,7 +1070,7 @@ async function slLoad(){
   const [c,w,o,rq]=await Promise.all([sb.rpc("seller_catalog"),sb.rpc("seller_wallet"),sb.rpc("seller_orders"),sb.rpc("seller_requests")]);
   SL.req=rq.data||{list:[]};
   if(c.error||w.error||o.error){SL.err=(c.error||w.error||o.error).message}else SL.err="";
-  SL.cat=c.data||{items:[],zones:[]};SL.info={};(SL.cat.info||[]).forEach(x=>SL.info[x.brand]=x);SL.wal=w.data||{ledger:[]};SL.ord=o.data||[];
+  SL.t=Date.now();  SL.cat=c.data||{items:[],zones:[]};SL.info={};(SL.cat.info||[]).forEach(x=>SL.info[x.brand]=x);SL.wal=w.data||{ledger:[]};SL.ord=o.data||[];
 }
 const slBrandImg=b=>{const inf=(SL.info||{})[b];if(inf&&inf.img)return SB_PUB+inf.img;const it=(SL.cat.items||[]).filter(i=>i.brand===b&&i.imgs&&i.imgs.length),f=it.find(i=>i.st!=="out")||it[0];return f?f.imgs[0]:brandSvg(b)};
 const slHasImg=b=>{const inf=(SL.info||{})[b];return !!((inf&&inf.img)||(SL.cat.items||[]).some(i=>i.brand===b&&i.imgs&&i.imgs.length))};
@@ -930,9 +1089,9 @@ function slRender(){
   if(SL.err)b+=`<div class="c" style="color:#8A3F0A">تعذر تحميل البيانات: ${esc(SL.err)}</div>`;
   b+=T==="home"?slHome():T==="cat"?(SL.brand?slBrand():slCat()):T==="nw"?slNew():T==="ord"?slOrders():slWallet();
   A().className="";
-  A().innerHTML=`<div class="sl"><div class="sl-b">${b}</div><nav class="bn" aria-label="التنقل">${nav.map(n=>`<button data-sn="${n[0]}" class="${T===n[0]?"on":""}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n[2]]}</svg>${n[1]}${n[0]==="nw"&&slCart().length?" ("+slCart().reduce((a,x)=>a+x.q,0)+")":""}</button>`).join("")}</nav></div>`;
+  A().innerHTML=`<div class="sl"><div class="sl-b">${b}</div><nav class="bn" aria-label="التنقل">${nav.map(n=>`<button data-sn="${n[0]}" class="${T===n[0]?"on":""}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n[2]]}</svg>${n[1]}${n[0]==="nw"&&slCart().length?" ("+slCart().reduce((a,x)=>a+x.q,0)+")":""}</button>`).join("")}</nav>${T!=="nw"?'<button id="slai" aria-label="اسألي المساعد">💬 اسألي</button>':""}</div>`;
   A().querySelectorAll("[data-sn]").forEach(e=>e.onclick=async()=>{SL.tab=e.dataset.sn;SL.brand=null;SL.msg="";if(SL.tab!=="nw"&&SL.tab!=="cat"&&SL.edit){SL.edit=null;SL.cart={};SL.acart={};SL.f={}}if(SL.tab!=="nw"||true)await slLoad();slRender();window.scrollTo(0,0)});
-  slBind();
+  slBind();slaCss();const fb=$("#slai");if(fb)fb.onclick=slaOpen;
 }
 function slHome(){
   const w=SL.wal,del=Number(w.delivered)||0,tot=Number(w.orders)||0,rate=tot?Math.round(del/tot*100):0;
