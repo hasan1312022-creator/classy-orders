@@ -85,6 +85,12 @@ body.adm main{max-width:none;padding:0}
 <main><div id="app" class="empty">جاري التحميل...</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
 <script>
+(function(){var er=[];function show(){var a=document.getElementById("app");if(a&&/^\s*جاري التحميل\.\.\.\s*$/.test(a.textContent||"")){a.innerHTML='<div style="padding:24px;text-align:center;line-height:1.9"><b>الصفحة ما حمّلتش</b><div style="font-size:13px;opacity:.8;margin:8px 0">'+(typeof window.supabase==="undefined"?"مكتبة الاتصال (Supabase) ما اتحمّلتش — غالبًا النت أو حظر مؤقت.":"في خطأ في الصفحة.")+'</div><div dir="ltr" style="font-size:12px;opacity:.7;word-break:break-all">'+er.slice(0,3).join(" | ").replace(/</g,"&lt;")+'</div><button onclick="location.reload()" style="margin-top:12px;padding:10px 22px;border-radius:10px;border:0;background:#12284b;color:#fff;font:inherit">إعادة المحاولة</button></div>'}}
+window.addEventListener("error",function(e){er.push((e.message||"error")+(e.lineno?" @"+e.lineno:""));setTimeout(show,300)});
+window.addEventListener("unhandledrejection",function(e){er.push(String(e.reason&&e.reason.message||e.reason));setTimeout(show,300)});
+setTimeout(show,12000)})();
+</script>
+<script>
 /* ===== حط بيانات Supabase بتاعتك هنا (من الخطوات) ===== */
 const SUPABASE_URL="https://dyxyjslpbpabfpdppsue.supabase.co";
 const SUPABASE_KEY="sb_publishable_ZBUimKgT3pGso9rmsthZRQ_b0iKjKhp";
@@ -126,6 +132,7 @@ async function init(){
   S.role=p&&p.role;S.name=p&&p.name;S.app=p&&p.app_status;
   if(S.role&&S.role!=="admin"){const {data:pm}=await sb.rpc("my_perms");S.perms=Array.isArray(pm)?pm:[]}
   if(S.role==="seller")return sellerApp();
+  if(S.role&&S.role!=="admin"){const {data:sa}=await sb.rpc("site_any");S.siteAny=sa===true}
   await load();render();
 }
 function loginView(){
@@ -150,7 +157,7 @@ async function signUrls(list){
   (data||[]).forEach(x=>{if(x.signedUrl)S.urls[x.path]=x.signedUrl});
 }
 async function load(){
-  if((S.role==="admin"||S.role==="mod")&&(!S.snames||Date.now()-(S.snT||0)>60000)){S.snT=Date.now();const {data}=await sb.rpc("seller_names");if(data)S.snames=data}
+  if((S.role==="admin"||S.role==="mod")&&(!S.snames||Date.now()-(S.snT||0)>60000)){S.snT=Date.now();const {data}=await sb.rpc("seller_names");if(data)S.snames=data;if(S.role==="mod"){const {data:sa}=await sb.rpc("site_any");if(typeof sa==="boolean")S.siteAny=sa}}
   if(S.tab==="list"||S.tab==="new"){
     const qq=S.q.replace(/[,()%*]/g," ").trim();
     if(qq.length>=2){const {data}=await sb.from("orders").select("*").or(`customer.ilike.%${qq}%,phone.ilike.%${qq}%,waybill.ilike.%${qq}%`).order("order_date",{ascending:false}).order("no").limit(100);S.orders=data||[]}
@@ -175,7 +182,7 @@ async function load(){
   if(S.tab==="team"||S.tab==="perms"){const {data}=await sb.from("profiles").select("*").order("name");S.team=data||[]}
   if(S.tab==="perms"){const [a,b]=await Promise.all([sb.from("role_perms").select("role,perm"),sb.from("site_perms").select("user_id,perms")]);S.rp=a.data||[];S.rpErr=a.error?a.error.message:"";S.sperm=b.data||[]}
 }
-function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(PM("orders_add"))t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"],["trk","🔎 تتبع شحنة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"]);if(r==="admin"||r==="mod")t.push(["defect","🗑️ التالف"]);t.push(["rep","📊 التقارير"]);if(r==="admin")t.push(["site","🌐 الموقع"],["sellers","🤝 السيلرات"],["mkt","🔮 أسرار السوق"],["team","👥 الفريق"],["perms","🔑 الصلاحيات"],["dsum","🌙 إغلاق اليوم"],["export","📤 تصدير"],["zones","🚚 أسعار الشحن"],["contacts","📣 عملاء سابقين"]);else if(PM("zones_edit"))t.push(["zones","🚚 أسعار الشحن"]);return t}
+function tabs(){const r=S.role,t=[["home","🏠 الرئيسية"]];if(PM("orders_add"))t.push(["new","➕ أوردر جديد"]);t.push(["list","📋 الأوردرات"+(S.newc?" ("+S.newc+" جديد)":"")],["kan","🧩 متابعة"],["trk","🔎 تتبع شحنة"]);if(r==="admin"||r==="mod")t.push(["late","⏰ متأخرة"+(S.late.length?" ("+S.late.length+")":"")]);t.push(["stock","🗂️ المخزون"]);if(r==="admin"||r==="mod")t.push(["defect","🗑️ التالف"]);t.push(["rep","📊 التقارير"]);if(r==="admin")t.push(["site","🌐 الموقع"],["sellers","🤝 السيلرات"],["mkt","🔮 أسرار السوق"],["team","👥 الفريق"],["perms","🔑 الصلاحيات"],["dsum","🌙 إغلاق اليوم"],["export","📤 تصدير"],["zones","🚚 أسعار الشحن"],["contacts","📣 عملاء سابقين"]);else{if(S.siteAny)t.push(["site","🌐 الموقع"]);if(PM("zones_edit"))t.push(["zones","🚚 أسعار الشحن"])}return t}
 window.__clTok=async()=>{const {data}=await sb.auth.getSession();const x=data&&data.session;return x?{t:x.access_token,u:x.user.id}:null};
 function siteView(){return '<iframe id="siteframe" class="siteframe" title="لوحة الموقع" src="../catchy-lens/admin.html?embed=1"></iframe>'}
 const TL={home:"الرئيسية",new:"أوردر جديد",list:"كل الأوردرات",kan:"متابعة",trk:"تتبع شحنة",late:"متأخرة",stock:"المخزون",defect:"التالف",rep:"التقارير",sellers:"السيلرات",perms:"الصلاحيات",dsum:"إغلاق اليوم",mkt:"أسرار السوق",contacts:"عملاء سابقين",site:"الموقع",team:"الفريق",zones:"أسعار الشحن",export:"تصدير"};
